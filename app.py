@@ -3,10 +3,9 @@ import os
 from flask import Flask, request, jsonify, render_template
 from sc import MongoDBManager
 from flask_cors import CORS
-import json
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # 全局启用CORS
 
 # 初始化 MongoDBManager
 manager = MongoDBManager()
