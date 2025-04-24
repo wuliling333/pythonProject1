@@ -1,11 +1,10 @@
 import os
-
 from flask import Flask, request, jsonify, render_template
 from sc import MongoDBManager
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # 全局启用CORS
+CORS(app)
 
 # 初始化 MongoDBManager
 manager = MongoDBManager()
@@ -118,18 +117,13 @@ def batch_update_rank_list():
     results = manager.batch_update_recent_rank_list(uids, new_list)
     return jsonify(results)
 
-
-# Add this route to your existing Flask app
 @app.route('/run-update', methods=['GET'])
 def run_update():
-    # Get all query parameters
     test_function = request.args.get('test_function')
 
-    # Validate the test function name
     if not test_function:
         return jsonify({"error": "Missing test_function parameter"}), 400
 
-    # Define available test functions
     available_functions = {
         'update_user': lambda: update_user(),
         'update_car': lambda: update_car(),
@@ -140,7 +134,6 @@ def run_update():
         'batch_update_rank_list': lambda: batch_update_rank_list()
     }
 
-    # Check if the requested function exists
     if test_function not in available_functions:
         return jsonify({
             "error": "Invalid test function",
@@ -148,7 +141,6 @@ def run_update():
         }), 400
 
     try:
-        # Call the test function
         result = available_functions[test_function]()
         return jsonify({
             "success": True,
@@ -164,3 +156,4 @@ def run_update():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)
+
