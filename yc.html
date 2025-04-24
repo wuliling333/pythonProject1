@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 数据管理工具</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f0f8ff;
+            border: 1px solid #b8daff;
+        }
+        .error {
+            color: #d9534f;
+            background-color: #f2dede;
+            border-color: #ebccd1;
+        }
+        .success {
+            color: #3c763d;
+            background-color: #dff0d8;
+            border-color: #d6e9c6;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            background-color: #eee;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .query-section {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        #queried-info {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #e9f7ef;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+        }
+        .error-log {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border: 1px solid #ffecb5;
+            border-radius: 5px;
+        }
+        .error-log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MongoDB 数据管理工具</h1>
+
+        <!-- 查询部分 -->
+        <div class="query-section">
+            <h2>查询数据</h2>
+            <div class="form-group">
+                <label for="query-uids">UID列表 (逗号分隔):</label>
+                <input type="text" id="query-uids" placeholder="例如: 10001,10002,10003">
+            </div>
+            <div class="form-group">
+                <label for="query-type">查询类型:</label>
+                <select id="query-type">
+                    <option value="user">仅用户排名</option>
+                    <option value="car">仅车辆分数</option>
+                    <option value="rank-list">仅比赛记录</option>
+                    <option value="all" selected>全部</option>
+                </select>
+            </div>
+            <button onclick="queryData()">执行查询</button>
+            <div id="queried-info"></div>
+            <div class="response" id="query-response"></div>
+        </div>
+
+        <!-- 更新部分 -->
+        <div class="tabs">
+            <div class="tab active" data-tab="update-user">更新用户排名</div>
+            <div class="tab" data-tab="update-car">更新车辆信息</div>
+            <div class="tab" data-tab="update-rank-list">更新比赛记录</div>
+        </div>
+
+        <!-- 更新用户排名部分 -->
+        <div class="tab-content active" id="update-user-content">
+            <h2>更新用户排名</h2>
+            <div class="form-group">
+                <label for="update-user-uid">用户ID:</label>
+                <input type="text" id="update-user-uid" placeholder="例如: 10001" readonly>
+            </div>
+            <div class="form-group">
+                <label for="update-user-score">新的rank_score:</label>
+                <input type="number" id="update-user-score" value="0">
+            </div>
+            <div class="form-group">
+                <label for="update-user-level">新的rank_level:</label>
+                <input type="number" id="update-user-level" value="0">
+            </div>
+            <button onclick="updateUser()">更新用户排名</button>
+            <div class="response" id="update-user-response"></div>
+        </div>
+
+        <!-- 更新车辆信息部分 -->
+        <div class="tab-content" id="update-car-content">
+            <h2>更新车辆信息</h2>
+            <div class="form-group">
+                <label for="update-car-uid">用户ID:</label>
+                <input type="text" id="update-car-uid" placeholder="例如: 10001" readonly>
+            </div>
+            <div class="form-group">
+                <label for="update-car-id">车辆ID:</label>
+                <select id="update-car-id">
+                    <option value="">请选择车辆ID</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="update-car-rank-score">新的rank_score:</label>
+                <input type="number" id="update-car-rank-score" value="0">
+            </div>
+            <div class="form-group">
+                <label for="update-car-season-score">新的season_best_rank_score:</label>
+                <input type="number" id="update-car-season-score" value="0">
+            </div>
+            <div class="form-group">
+                <label for="update-car-palace-score">新的recent_palace_score (JSON格式):</label>
+                <textarea id="update-car-palace-score" rows="3" placeholder="[150,50,50,50,200]"></textarea>
+            </div>
+            <button onclick="updateCar()">更新车辆信息</button>
+            <div class="response" id="update-car-response"></div>
+
+            <h2>批量更新车辆信息</h2>
+            <div class="form-group">
+                <label for="batch-update-uid">用户ID:</label>
+                <input type="text" id="batch-update-uid" placeholder="例如: 10001" readonly>
+            </div>
+            <div class="form-group">
+                <label for="batch-update-updates">更新内容 (JSON格式):</label>
+                <textarea id="batch-update-updates" rows="4" placeholder='{"car_id1": {"rank_score": 1000, "season_best_rank_score": 2000, "recent_palace_score": [100,50,50,50,200]}, "car_id2": {"rank_score": 1500, "recent_palace_score": [100,50,50,50,200]}}'></textarea>
+            </div>
+            <button onclick="batchUpdateCars()">批量更新车辆信息</button>
+            <div class="response" id="batch-update-response"></div>
+        </div>
+
+        <!-- 更新比赛记录部分 -->
+        <div class="tab-content" id="update-rank-list-content">
+            <h2>更新比赛记录</h2>
+            <div class="form-group">
+                <label for="update-rank-uid">用户ID:</label>
+                <input type="text" id="update-rank-uid" placeholder="例如: 10001" readonly>
+            </div>
+            <div class="form-group">
+                <label for="update-rank-list">新的比赛记录列表 (JSON格式):</label>
+                <textarea id="update-rank-list" rows="3" placeholder="[1,1,3,4,1]"></textarea>
+            </div>
+            <button onclick="updateRankList()">更新比赛记录</button>
+            <div class="response" id="update-rank-response"></div>
+
+            <h2>批量更新比赛记录</h2>
+            <div class="form-group">
+                <label for="batch-updateuids">UID列表 (逗号分隔):</label>
+                <input type="text" id="batch-updateuids" placeholder="例如: 10001,10002,10003" readonly>
+            </div>
+            <div class="form-group">
+                <label for="batch-updatenew-list">新的比赛记录列表 (JSON格式):</label>
+                <textarea id="batch-updatenew-list" rows="3" placeholder="[1,1,3,4,1]"></textarea>
+            </div>
+            <button onclick="batchUpdateRankList()">批量更新比赛记录</button>
+            <div class="response" id="batch-update-rank-response"></div>
+        </div>
+
+        <!-- 错误日志部分 -->
+        <div class="error-log">
+            <h2>错误日志</h2>
+            <div id="error-log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let queriedInfo = null;
+        let carIds = [];
+        let selectedUid = null;
+
+        // 标签页切换功能
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.querySelectorAll('.tab').forEach(t => {
+                    t.classList.remove('active');
+                });
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}-content`).classList.add('active');
+                tab.classList.add('active');
+            });
+        });
+
+        // 查询数据
+        function queryData() {
+            const uids = document.getElementById('query-uids').value;
+            const type = document.getElementById('query-type').value;
+
+            if (!uids) {
+                showError('query-response', '请输入UID列表');
+                logError('请输入UID列表', 'queryData');
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uids: uids.split(',').map(uid => parseInt(uid.trim())),
+                    type: type
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data) {
+                    queriedInfo = data;
+                    displayQueriedInfo();
+                    fillQueriedInfo();
+                    showResponse('query-response', '查询成功', 'success');
+                } else {
+                    showError('query-response', '查询失败或无数据返回');
+                    logError('查询失败或无数据返回', 'queryData');
+                }
+            })
+            .catch(error => {
+                showError('query-response', `错误: ${error}`);
+                logError(`错误: ${error}`, 'queryData');
+                console.error('queryData 错误:', error);
+            });
+        }
+
+        // 显示查询到的信息
+        function displayQueriedInfo() {
+            if (queriedInfo) {
+                let infoText = '<strong>查询到的信息:</strong><br>';
+                for (const uid in queriedInfo) {
+                    const user = queriedInfo[uid];
+                    infoText += `UID: ${uid}<br>`;
+                    if (user['用户排名']) {
+                        infoText += `  用户排名: rank_score = ${user['用户排名'].rank_score}, rank_level = ${user['用户排名'].rank_level}<br>`;
+                    }
+                    if (user['车辆分数']) {
+                        infoText += '  车辆分数:<br>';
+                        for (const carId in user['车辆分数']) {
+                            const car = user['车辆分数'][carId];
+                            infoText += `    ${carId}: rank_score = ${car.rank_score}, season_best_rank_score = ${car.season_best_rank_score}, recent_palace_score = ${JSON.stringify(car.recent_palace_score || [])}<br>`;
+                        }
+                    }
+                    if (user['比赛记录']) {
+                        infoText += `  比赛记录: [${user['比赛记录'].join(', ')}]<br>`;
+                    }
+                }
+                document.getElementById('queried-info').innerHTML = infoText;
+            }
+        }
+
+        // 填充查询结果到表单
+        function fillQueriedInfo() {
+            if (queriedInfo && Object.keys(queriedInfo).length > 0) {
+                const uids = Object.keys(queriedInfo);
+                selectedUid = uids[0];
+
+                // 填充到各个表单字段
+                document.getElementById('update-user-uid').value = selectedUid;
+                document.getElementById('update-car-uid').value = selectedUid;
+                document.getElementById('batch-update-uid').value = selectedUid;
+                document.getElementById('update-rank-uid').value = selectedUid;
+                document.getElementById('batch-updateuids').value = uids.join(',');
+
+                // 填充车辆ID下拉菜单
+                updateCarIdDropdown();
+            }
+        }
+
+        // 更新车辆ID下拉菜单
+        function updateCarIdDropdown() {
+            const dropdown = document.getElementById('update-car-id');
+            dropdown.innerHTML = '<option value="">请选择车辆ID</option>';
+
+            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
+                carIds = Object.keys(queriedInfo[selectedUid]['车辆分数']);
+                carIds.forEach(carId => {
+                    const option = document.createElement('option');
+                    option.value = carId;
+                    option.textContent = carId;
+                    dropdown.appendChild(option);
+                });
+            }
+        }
+
+        // 更新用户排名
+        function updateUser() {
+            const uid = document.getElementById('update-user-uid').value;
+            const score = document.getElementById('update-user-score').value;
+            const level = document.getElementById('update-user-level').value;
+
+            if (!uid) {
+                showError('update-user-response', '请先查询用户数据');
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/update-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: uid,
+                    score: parseFloat(score),
+                    level: parseInt(level)
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResponse('update-user-response', `更新成功: ${JSON.stringify(data)}`, 'success');
+                logError(`用户 ${uid} 排名更新成功`, 'updateUser');
+            })
+            .catch(error => {
+                showError('update-user-response', `更新失败: ${error}`);
+                logError(`用户 ${uid} 排名更新失败: ${error}`, 'updateUser');
+            });
+        }
+
+        // 更新车辆信息
+        function updateCar() {
+            const uid = document.getElementById('update-car-uid').value;
+            const carId = document.getElementById('update-car-id').value;
+            const rankScore = document.getElementById('update-car-rank-score').value;
+            const seasonScore = document.getElementById('update-car-season-score').value;
+            const palaceScore = document.getElementById('update-car-palace-score').value;
+
+            if (!uid || !carId) {
+                showError('update-car-response', '请先查询并选择车辆');
+                return;
+            }
+
+            let palaceScores = [];
+            try {
+                if (palaceScore) {
+                    palaceScores = JSON.parse(palaceScore);
+                    if (!Array.isArray(palaceScores)) {
+                        throw new Error('recent_palace_score 必须是数组');
+                    }
+                }
+            } catch (e) {
+                showError('update-car-response', `JSON解析错误: ${e}`);
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/update-car', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: uid,
+                    car_id: carId,
+                    rank_score: parseFloat(rankScore),
+                    season_score: parseFloat(seasonScore),
+                    palace_score: palaceScores
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResponse('update-car-response', `更新成功: ${JSON.stringify(data)}`, 'success');
+                logError(`用户 ${uid} 车辆 ${carId} 更新成功`, 'updateCar');
+            })
+            .catch(error => {
+                showError('update-car-response', `更新失败: ${error}`);
+                logError(`用户 ${uid} 车辆 ${carId} 更新失败: ${error}`, 'updateCar');
+            });
+        }
+
+        // 批量更新车辆信息
+        function batchUpdateCars() {
+            const uid = document.getElementById('batch-update-uid').value;
+            const updatesText = document.getElementById('batch-update-updates').value;
+
+            if (!uid || !updatesText) {
+                showError('batch-update-response', '请填写用户ID和更新内容');
+                return;
+            }
+
+            let updates;
+            try {
+                updates = JSON.parse(updatesText);
+            } catch (e) {
+                showError('batch-update-response', `JSON解析错误: ${e}`);
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/batch-update-user-cars', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: uid,
+                    updates: updates
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResponse('batch-update-response', `批量更新成功: ${JSON.stringify(data)}`, 'success');
+                logError(`用户 ${uid} 批量更新车辆成功`, 'batchUpdateCars');
+            })
+            .catch(error => {
+                showError('batch-update-response', `批量更新失败: ${error}`);
+                logError(`用户 ${uid} 批量更新车辆失败: ${error}`, 'batchUpdateCars');
+            });
+        }
+
+        // 更新比赛记录
+        function updateRankList() {
+            const uid = document.getElementById('update-rank-uid').value;
+            const newListText = document.getElementById('update-rank-list').value;
+
+            if (!uid || !newListText) {
+                showError('update-rank-response', '请填写用户ID和比赛记录');
+                return;
+            }
+
+            let newList;
+            try {
+                newList = JSON.parse(newListText);
+                if (!Array.isArray(newList)) {
+                    throw new Error('比赛记录必须是数组');
+                }
+            } catch (e) {
+                showError('update-rank-response', `JSON解析错误: ${e}`);
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/update-rank-list', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: uid,
+                    new_list: newList
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResponse('update-rank-response', `更新成功: ${JSON.stringify(data)}`, 'success');
+                logError(`用户 ${uid} 比赛记录更新成功`, 'updateRankList');
+            })
+            .catch(error => {
+                showError('update-rank-response', `更新失败: ${error}`);
+                logError(`用户 ${uid} 比赛记录更新失败: ${error}`, 'updateRankList');
+            });
+        }
+
+        // 批量更新比赛记录
+        function batchUpdateRankList() {
+            const uids = document.getElementById('batch-updateuids').value;
+            const newListText = document.getElementById('batch-updatenew-list').value;
+
+            if (!uids || !newListText) {
+                showError('batch-update-rank-response', '请填写UID列表和比赛记录');
+                return;
+            }
+
+            let newList;
+            try {
+                newList = JSON.parse(newListText);
+                if (!Array.isArray(newList)) {
+                    throw new Error('比赛记录必须是数组');
+                }
+            } catch (e) {
+                showError('batch-update-rank-response', `JSON解析错误: ${e}`);
+                return;
+            }
+
+            fetch('http://10.30.20.18:5001/api/batch-update-rank-list', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uids: uids.split(',').map(uid => parseInt(uid.trim())),
+                    new_list: newList
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResponse('batch-update-rank-response', `批量更新成功: ${JSON.stringify(data)}`, 'success');
+                logError(`批量更新比赛记录成功`, 'batchUpdateRankList');
+            })
+            .catch(error => {
+                showError('batch-update-rank-response', `批量更新失败: ${error}`);
+                logError(`批量更新比赛记录失败: ${error}`, 'batchUpdateRankList');
+            });
+        }
+
+        // 显示响应消息
+        function showResponse(elementId, message, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = 'response ' + type;
+        }
+
+        // 显示错误消息
+        function showError(elementId, message) {
+            showResponse(elementId, message, 'error');
+        }
+
+        // 记录错误日志
+        function logError(message, functionName) {
+            const now = new Date();
+            const timestamp = now.toLocaleString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'error-log-entry';
+            logEntry.innerHTML = `<strong>[${timestamp}] ${functionName}:</strong> ${message}`;
+            document.getElementById('error-log-container').prepend(logEntry);
+        }
+    </script>
+</body>
+</html>
