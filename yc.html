@@ -200,7 +200,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="update-car-rank-score">新的rank_score:</label>
+                <label for="update-car-rank-score">新的排位分:</label>
                 <input type="number" id="update-car-rank-score" value="0">
             </div>
             <div class="form-group">
@@ -208,7 +208,7 @@
                 <input type="number" id="update-car-season-score" value="0">
             </div>
             <div class="form-group">
-                <label for="update-car-palace-score">新的recent_palace_score (JSON格式):</label>
+                <label for="update-car-palace-score">近5场殿堂分 (JSON格式):</label>
                 <textarea id="update-car-palace-score" rows="3" placeholder="[150,50,50,50,200]"></textarea>
             </div>
             <button onclick="updateCar()">更新车辆信息</button>
@@ -364,12 +364,26 @@
                 document.getElementById('update-rank-uid').value = selectedUid;
                 document.getElementById('batch-updateuids').value = uids.join(',');
 
-                // 填充车辆ID下拉菜单
+                // 填充用户排名数据
+                if (queriedInfo[selectedUid]['用户排名']) {
+                    const userRank = queriedInfo[selectedUid]['用户排名'];
+                    document.getElementById('update-user-score').value = userRank.rank_score || 0;
+                    document.getElementById('update-user-level').value = userRank.rank_level || 0;
+                }
+
+                // 填充车辆信息数据
                 updateCarIdDropdown();
+
+                // 填充比赛记录数据
+                if (queriedInfo[selectedUid]['比赛记录']) {
+                    const rankList = queriedInfo[selectedUid]['比赛记录'];
+                    document.getElementById('update-rank-list').value = JSON.stringify(rankList);
+                    document.getElementById('batch-updatenew-list').value = JSON.stringify(rankList);
+                }
             }
         }
 
-        // 更新车辆ID下拉菜单
+        // 更新车辆ID下拉菜单并自动填充选中车辆的数据
         function updateCarIdDropdown() {
             const dropdown = document.getElementById('update-car-id');
             dropdown.innerHTML = '<option value="">请选择车辆ID</option>';
@@ -382,6 +396,41 @@
                     option.textContent = carId;
                     dropdown.appendChild(option);
                 });
+
+                // 自动选择第一个车辆并填充数据
+                if (carIds.length > 0) {
+                    dropdown.value = carIds[0];
+                    fillCarData(carIds[0]);
+                }
+            }
+
+            // 添加事件监听器，当选择车辆时自动填充数据
+            dropdown.addEventListener('change', function() {
+                if (this.value) {
+                    fillCarData(this.value);
+                }
+            });
+        }
+
+        // 填充车辆数据
+        function fillCarData(carId) {
+            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数'] && queriedInfo[selectedUid]['车辆分数'][carId]) {
+                const car = queriedInfo[selectedUid]['车辆分数'][carId];
+                document.getElementById('update-car-rank-score').value = car.rank_score || 0;
+                document.getElementById('update-car-season-score').value = car.season_best_rank_score || 0;
+                document.getElementById('update-car-palace-score').value = JSON.stringify(car.recent_palace_score || []);
+
+                // 生成批量更新JSON
+                const batchUpdates = {};
+                for (const cid in queriedInfo[selectedUid]['车辆分数']) {
+                    const c = queriedInfo[selectedUid]['车辆分数'][cid];
+                    batchUpdates[cid] = {
+                        rank_score: c.rank_score || 0,
+                        season_best_rank_score: c.season_best_rank_score || 0,
+                        recent_palace_score: c.recent_palace_score || []
+                    };
+                }
+                document.getElementById('batch-update-updates').value = JSON.stringify(batchUpdates, null, 2);
             }
         }
 
@@ -615,7 +664,123 @@
                 logError(`批量更新比赛记录失败: ${error}`, 'batchUpdateRankList');
             });
         }
+        // 增强的fillQueriedInfo函数
+        function fillQueriedInfo() {
+            if (queriedInfo && Object.keys(queriedInfo).length > 0) {
+                const uids = Object.keys(queriedInfo);
+                selectedUid = uids[0];
 
+                // 填充基础UID信息
+                document.getElementById('update-user-uid').value = selectedUid;
+                document.getElementById('update-car-uid').value = selectedUid;
+                document.getElementById('batch-update-uid').value = selectedUid;
+                document.getElementById('update-rank-uid').value = selectedUid;
+                document.getElementById('batch-updateuids').value = uids.join(',');
+
+                // 增强的用户排名填充
+                if (queriedInfo[selectedUid]['用户排名']) {
+                    const userRank = queriedInfo[selectedUid]['用户排名'];
+                    document.getElementById('update-user-score').value = userRank.rank_score || 0;
+                    document.getElementById('update-user-level').value = userRank.rank_level || 0;
+                }
+
+                // 增强的车辆信息处理
+                updateCarIdDropdown();
+
+                // 增强的比赛记录处理
+                if (queriedInfo[selectedUid]['比赛记录']) {
+                    try {
+                        const rankList = queriedInfo[selectedUid]['比赛记录'];
+                        const formattedList = JSON.stringify(rankList, null, 2);
+                        document.getElementById('update-rank-list').value = formattedList;
+                        document.getElementById('batch-updatenew-list').value = formattedList;
+                    } catch (e) {
+                        console.error('比赛记录格式化错误:', e);
+                    }
+                }
+            }
+        }
+
+        // 增强的updateCarIdDropdown函数
+        function updateCarIdDropdown() {
+            const dropdown = document.getElementById('update-car-id');
+            dropdown.innerHTML = '<option value="">请选择车辆ID</option>';
+
+            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
+                carIds = Object.keys(queriedInfo[selectedUid]['车辆分数']);
+
+                // 填充下拉选项
+                carIds.forEach(carId => {
+                    const option = document.createElement('option');
+                    option.value = carId;
+                    option.textContent = carId;
+                    dropdown.appendChild(option);
+                });
+
+                // 自动选择第一个车辆并填充数据
+                if (carIds.length > 0) {
+                    dropdown.value = carIds[0];
+                    fillCarData(carIds[0]);
+                }
+            }
+
+            // 增强的下拉菜单事件处理
+            dropdown.addEventListener('change', function() {
+                if (this.value) {
+                    fillCarData(this.value);
+                } else {
+                    // 清空表单
+                    document.getElementById('update-car-rank-score').value = '';
+                    document.getElementById('update-car-season-score').value = '';
+                    document.getElementById('update-car-palace-score').value = '';
+                }
+            });
+        }
+
+        // 新增的fillCarData函数
+        function fillCarData(carId) {
+            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数'] && queriedInfo[selectedUid]['车辆分数'][carId]) {
+                const car = queriedInfo[selectedUid]['车辆分数'][carId];
+
+                // 填充基础车辆数据
+                document.getElementById('update-car-rank-score').value = car.rank_score || 0;
+                document.getElementById('update-car-season-score').value = car.season_best_rank_score || 0;
+
+                // 处理JSON数据
+                try {
+                    const palaceScore = car.recent_palace_score || [];
+                    document.getElementById('update-car-palace-score').value = JSON.stringify(palaceScore, null, 2);
+                } catch (e) {
+                    console.error('JSON格式化错误:', e);
+                    document.getElementById('update-car-palace-score').value = '[]';
+                }
+
+                // 生成批量更新JSON
+                generateBatchUpdateJson();
+            }
+        }
+
+        // 新增的generateBatchUpdateJson函数
+        function generateBatchUpdateJson() {
+            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
+                const batchUpdates = {};
+
+                Object.keys(queriedInfo[selectedUid]['车辆分数']).forEach(carId => {
+                    const car = queriedInfo[selectedUid]['车辆分数'][carId];
+                    batchUpdates[carId] = {
+                        rank_score: car.rank_score || 0,
+                        season_best_rank_score: car.season_best_rank_score || 0,
+                        recent_palace_score: car.recent_palace_score || []
+                    };
+                });
+
+                try {
+                    document.getElementById('batch-update-updates').value = JSON.stringify(batchUpdates, null, 2);
+                } catch (e) {
+                    console.error('批量更新JSON生成错误:', e);
+                }
+            }
+        }
         // 显示响应消息
         function showResponse(elementId, message, type = 'success') {
             const element = document.getElementById(elementId);

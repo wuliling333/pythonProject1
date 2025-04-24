@@ -1,17 +1,8 @@
-# coding=utf-8
-# coding=gbk
-# @author: rourou
-# @file: sc.py
-# @time: 2025/4/23 16:43
-# @desc:
-import threading
-
 from pymongo import MongoClient
 import argparse
 import pprint
 import json
 from typing import Optional, Dict, Any, List, Union, Tuple
-
 
 
 class MongoDBManager:
@@ -44,15 +35,6 @@ class MongoDBManager:
         """关闭数据库连接"""
         if self.client:
             self.client.close()
-
-    def start_api(self, APIService=None):
-        """启动API服务"""
-        # 在这里导入 APIService，避免循环导入
-        from app import APIService  # <-- 修改这里
-        api = APIService(self)
-        api_thread = threading.Thread(target=api.run, daemon=True)
-        api_thread.start()
-        print(f"API服务已启动，监听端口 5000")
 
     # ==================== 通用工具方法 ====================
     def _get_user_filter(self, uid: int) -> Dict:
@@ -113,7 +95,8 @@ class MongoDBManager:
         return {
             car_id: {
                 'rank_score': car_data.get('rank_score', 'N/A'),
-                'season_best_rank_score': car_data.get('season_best_rank_score', 'N/A')
+                'season_best_rank_score': car_data.get('season_best_rank_score', 'N/A'),
+                'recent_palace_score': car_data.get('recent_palace_score')  # 不设置默认值，直接返回数据库中的值
             }
             for car_id, car_data in car_list.items()
         }
@@ -471,7 +454,8 @@ def handle_query(args, manager):
             """自定义格式化车辆分数数据"""
             return "{\n" + ",\n".join(
                 f'    "{car_id}": {{"rank_score": {scores.get("rank_score", "N/A")}, '
-                f'"season_best_rank_score": {scores.get("season_best_rank_score", "N/A")}}}'
+                f'"season_best_rank_score": {scores.get("season_best_rank_score", "N/A")}, '
+                f'"recent_palace_score": {scores.get("recent_palace_score", [])}}}'
                 for car_id, scores in data.items()
             ) + "\n}"
 
@@ -482,10 +466,6 @@ def handle_query(args, manager):
 
 
 def main():
-    manager = MongoDBManager()
-    if manager.connect():
-        manager.start_api()
-
     parser = setup_arg_parser()
     args = parser.parse_args()
 
@@ -671,21 +651,17 @@ python sc.py car batch-update-user-cars \
 
 更新用户的殿堂近5场分数
  python sc.py car batch-update-user-cars \
-    --uid 10001709 \
+    --uid 10000560 \
     --updates '{"10006": {"recent_palace_score": [150,50,50,50,200]}, 
-    "10001": {"recent_palace_score": [150,50,50,50,200]}}'
+    "10001": {"recent_palace_score": [50,50,50,50,150]}}'
 
 修改车辆排位分和殿堂分
 python sc.py car batch-update-user-cars \
-    --uid 10001703 \
+    --uid 10000560 \
     --updates '{
-        "10006": {
-            "recent_palace_score": [150,50,50,50,200],
-            "rank_score": 1600  
-        },
         "10001": {
-            "recent_palace_score": [150,50,50,50,200],
-            "rank_score": 1700 
+            "recent_palace_score": [50,50,50,50,150],
+            "rank_score": 1550
         }
     }'
 
