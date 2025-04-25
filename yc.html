@@ -165,6 +165,7 @@
             <div class="tab active" data-tab="update-user">更新用户排名</div>
             <div class="tab" data-tab="update-car">更新车辆信息</div>
             <div class="tab" data-tab="update-rank-list">更新比赛记录</div>
+            <div class="tab" data-tab="combo-update">组合更新</div>
         </div>
 
         <!-- 更新用户排名部分 -->
@@ -172,7 +173,7 @@
             <h2>更新用户排名</h2>
             <div class="form-group">
                 <label for="update-user-uid">用户ID:</label>
-                <input type="text" id="update-user-uid" placeholder="例如: 10001" readonly>
+                <input type="text" id="update-user-uid" placeholder="例如: 10001">
             </div>
             <div class="form-group">
                 <label for="update-user-score">新的rank_score:</label>
@@ -182,49 +183,39 @@
                 <label for="update-user-level">新的rank_level:</label>
                 <input type="number" id="update-user-level" value="0">
             </div>
-            <button onclick="updateUser()">更新用户排名</button>
+            <button onclick="updateUserRank()">更新用户排名</button>
             <div class="response" id="update-user-response"></div>
         </div>
 
         <!-- 更新车辆信息部分 -->
         <div class="tab-content" id="update-car-content">
-            <h2>更新车辆信息</h2>
-            <div class="form-group">
-                <label for="update-car-uid">用户ID:</label>
-                <input type="text" id="update-car-uid" placeholder="例如: 10001" readonly>
-            </div>
-            <div class="form-group">
-                <label for="update-car-id">车辆ID:</label>
-                <select id="update-car-id">
-                    <option value="">请选择车辆ID</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="update-car-rank-score">新的排位分:</label>
-                <input type="number" id="update-car-rank-score" value="0">
-            </div>
-            <div class="form-group">
-                <label for="update-car-season-score">新的season_best_rank_score:</label>
-                <input type="number" id="update-car-season-score" value="0">
-            </div>
-            <div class="form-group">
-                <label for="update-car-palace-score">近5场殿堂分 (JSON格式):</label>
-                <textarea id="update-car-palace-score" rows="3" placeholder="[150,50,50,50,200]"></textarea>
-            </div>
-            <button onclick="updateCar()">更新车辆信息</button>
-            <div class="response" id="update-car-response"></div>
+            <h2>更新车辆数据</h2>
+            <form id="update-car-form">
+                <div class="form-group">
+                    <label for="car-id">车辆ID</label>
+                    <input type="text" id="car-id" name="car_id" required>
+                </div>
 
-            <h2>批量更新车辆信息</h2>
-            <div class="form-group">
-                <label for="batch-update-uid">用户ID:</label>
-                <input type="text" id="batch-update-uid" placeholder="例如: 10001" readonly>
-            </div>
-            <div class="form-group">
-                <label for="batch-update-updates">更新内容 (JSON格式):</label>
-                <textarea id="batch-update-updates" rows="4" placeholder='{"car_id1": {"rank_score": 1000, "season_best_rank_score": 2000, "recent_palace_score": [100,50,50,50,200]}, "car_id2": {"rank_score": 1500, "recent_palace_score": [100,50,50,50,200]}}'></textarea>
-            </div>
-            <button onclick="batchUpdateCars()">批量更新车辆信息</button>
-            <div class="response" id="batch-update-response"></div>
+                <div class="form-group">
+                    <label for="car-score">车辆分数</label>
+                    <input type="number" id="car-score" name="car_score" step="0.01">
+                </div>
+
+                <!-- 新增殿堂分数字段 -->
+                <div class="form-group">
+                    <label for="palace-score">殿堂分数</label>
+                    <input type="number" id="palace-score" name="palace_score" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="car-rank">车辆排名</label>
+                    <input type="number" id="car-rank" name="car_rank">
+                </div>
+
+                <button type="submit">更新车辆数据</button>
+            </form>
+
+            <div id="car-update-response" class="response" style="display: none;"></div>
         </div>
 
         <!-- 更新比赛记录部分 -->
@@ -232,7 +223,7 @@
             <h2>更新比赛记录</h2>
             <div class="form-group">
                 <label for="update-rank-uid">用户ID:</label>
-                <input type="text" id="update-rank-uid" placeholder="例如: 10001" readonly>
+                <input type="text" id="update-rank-uid" placeholder="例如: 10001">
             </div>
             <div class="form-group">
                 <label for="update-rank-list">新的比赛记录列表 (JSON格式):</label>
@@ -240,18 +231,33 @@
             </div>
             <button onclick="updateRankList()">更新比赛记录</button>
             <div class="response" id="update-rank-response"></div>
+        </div>
 
-            <h2>批量更新比赛记录</h2>
+        <!-- 组合更新部分 -->
+        <div class="tab-content" id="combo-update-content">
+            <h2>组合更新</h2>
             <div class="form-group">
-                <label for="batch-updateuids">UID列表 (逗号分隔):</label>
-                <input type="text" id="batch-updateuids" placeholder="例如: 10001,10002,10003" readonly>
+                <label for="combo-update-uids">UID列表 (逗号分隔):</label>
+                <input type="text" id="combo-update-uids" placeholder="例如: 10001,10002,10003">
             </div>
             <div class="form-group">
-                <label for="batch-updatenew-list">新的比赛记录列表 (JSON格式):</label>
-                <textarea id="batch-updatenew-list" rows="3" placeholder="[1,1,3,4,1]"></textarea>
+                <label for="combo-update-car-id">车辆ID:</label>
+                <input type="text" id="combo-update-car-id" placeholder="例如: 10001">
             </div>
-            <button onclick="batchUpdateRankList()">批量更新比赛记录</button>
-            <div class="response" id="batch-update-rank-response"></div>
+            <div class="form-group">
+                <label for="combo-update-rank-score">新的rank_score:</label>
+                <input type="number" id="combo-update-rank-score" value="0">
+            </div>
+            <div class="form-group">
+                <label for="combo-update-season-score">新的season_best_rank_score:</label>
+                <input type="number" id="combo-update-season-score" value="0">
+            </div>
+            <div class="form-group">
+                <label for="combo-update-rank-list">新的比赛记录列表 (JSON格式):</label>
+                <textarea id="combo-update-rank-list" rows="3" placeholder="[1,1,3,4,1]"></textarea>
+            </div>
+            <button onclick="comboUpdate()">执行组合更新</button>
+            <div class="response" id="combo-update-response"></div>
         </div>
 
         <!-- 错误日志部分 -->
@@ -262,10 +268,6 @@
     </div>
 
     <script>
-        let queriedInfo = null;
-        let carIds = [];
-        let selectedUid = null;
-
         // 标签页切换功能
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -288,154 +290,60 @@
 
             if (!uids) {
                 showError('query-response', '请输入UID列表');
-                logError('请输入UID列表', 'queryData');
                 return;
             }
 
-            fetch('http://10.30.20.18:5001/api/query', {
+            showResponse('query-response', '查询中...', 'info');
+
+            fetch('/api/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     uids: uids.split(',').map(uid => parseInt(uid.trim())),
-                    type: type
+                    query_type: type
                 })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data) {
-                    queriedInfo = data;
-                    displayQueriedInfo();
-                    fillQueriedInfo();
+                if (data && Object.keys(data).length > 0) {
                     showResponse('query-response', '查询成功', 'success');
+                    displayQueriedInfo(data);
                 } else {
-                    showError('query-response', '查询失败或无数据返回');
-                    logError('查询失败或无数据返回', 'queryData');
+                    showError('query-response', '查询成功但无数据返回');
                 }
             })
             .catch(error => {
-                showError('query-response', `错误: ${error}`);
-                logError(`错误: ${error}`, 'queryData');
-                console.error('queryData 错误:', error);
+                showError('query-response', `查询失败: ${error.message}`);
             });
         }
 
         // 显示查询到的信息
-        function displayQueriedInfo() {
-            if (queriedInfo) {
-                let infoText = '<strong>查询到的信息:</strong><br>';
-                for (const uid in queriedInfo) {
-                    const user = queriedInfo[uid];
-                    infoText += `UID: ${uid}<br>`;
-                    if (user['用户排名']) {
-                        infoText += `  用户排名: rank_score = ${user['用户排名'].rank_score}, rank_level = ${user['用户排名'].rank_level}<br>`;
-                    }
-                    if (user['车辆分数']) {
-                        infoText += '  车辆分数:<br>';
-                        for (const carId in user['车辆分数']) {
-                            const car = user['车辆分数'][carId];
-                            infoText += `    ${carId}: rank_score = ${car.rank_score}, season_best_rank_score = ${car.season_best_rank_score}, recent_palace_score = ${JSON.stringify(car.recent_palace_score || [])}<br>`;
-                        }
-                    }
-                    if (user['比赛记录']) {
-                        infoText += `  比赛记录: [${user['比赛记录'].join(', ')}]<br>`;
+        function displayQueriedInfo(data) {
+            let infoText = '<strong>查询到的信息:</strong><br>';
+            for (const uid in data) {
+                const user = data[uid];
+                infoText += `UID: ${uid}<br>`;
+                if (user['user_rank']) {
+                    infoText += `  用户排名: rank_score = ${user['user_rank'].rank_score}, rank_level = ${user['user_rank'].rank_level}<br>`;
+                }
+                if (user['car_scores']) {
+                    infoText += '  车辆分数:<br>';
+                    for (const carId in user['car_scores']) {
+                        const car = user['car_scores'][carId];
+                        infoText += `    ${carId}: rank_score = ${car.rank_score}, season_best_rank_score = ${car.season_best_rank_score}<br>`;
                     }
                 }
-                document.getElementById('queried-info').innerHTML = infoText;
-            }
-        }
-
-        // 填充查询结果到表单
-        function fillQueriedInfo() {
-            if (queriedInfo && Object.keys(queriedInfo).length > 0) {
-                const uids = Object.keys(queriedInfo);
-                selectedUid = uids[0];
-
-                // 填充到各个表单字段
-                document.getElementById('update-user-uid').value = selectedUid;
-                document.getElementById('update-car-uid').value = selectedUid;
-                document.getElementById('batch-update-uid').value = selectedUid;
-                document.getElementById('update-rank-uid').value = selectedUid;
-                document.getElementById('batch-updateuids').value = uids.join(',');
-
-                // 填充用户排名数据
-                if (queriedInfo[selectedUid]['用户排名']) {
-                    const userRank = queriedInfo[selectedUid]['用户排名'];
-                    document.getElementById('update-user-score').value = userRank.rank_score || 0;
-                    document.getElementById('update-user-level').value = userRank.rank_level || 0;
-                }
-
-                // 填充车辆信息数据
-                updateCarIdDropdown();
-
-                // 填充比赛记录数据
-                if (queriedInfo[selectedUid]['比赛记录']) {
-                    const rankList = queriedInfo[selectedUid]['比赛记录'];
-                    document.getElementById('update-rank-list').value = JSON.stringify(rankList);
-                    document.getElementById('batch-updatenew-list').value = JSON.stringify(rankList);
+                if (user['recent_rank_list']) {
+                    infoText += `  比赛记录: [${user['recent_rank_list'].join(', ')}]<br>`;
                 }
             }
-        }
-
-        // 更新车辆ID下拉菜单并自动填充选中车辆的数据
-        function updateCarIdDropdown() {
-            const dropdown = document.getElementById('update-car-id');
-            dropdown.innerHTML = '<option value="">请选择车辆ID</option>';
-
-            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
-                carIds = Object.keys(queriedInfo[selectedUid]['车辆分数']);
-                carIds.forEach(carId => {
-                    const option = document.createElement('option');
-                    option.value = carId;
-                    option.textContent = carId;
-                    dropdown.appendChild(option);
-                });
-
-                // 自动选择第一个车辆并填充数据
-                if (carIds.length > 0) {
-                    dropdown.value = carIds[0];
-                    fillCarData(carIds[0]);
-                }
-            }
-
-            // 添加事件监听器，当选择车辆时自动填充数据
-            dropdown.addEventListener('change', function() {
-                if (this.value) {
-                    fillCarData(this.value);
-                }
-            });
-        }
-
-        // 填充车辆数据
-        function fillCarData(carId) {
-            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数'] && queriedInfo[selectedUid]['车辆分数'][carId]) {
-                const car = queriedInfo[selectedUid]['车辆分数'][carId];
-                document.getElementById('update-car-rank-score').value = car.rank_score || 0;
-                document.getElementById('update-car-season-score').value = car.season_best_rank_score || 0;
-                document.getElementById('update-car-palace-score').value = JSON.stringify(car.recent_palace_score || []);
-
-                // 生成批量更新JSON
-                const batchUpdates = {};
-                for (const cid in queriedInfo[selectedUid]['车辆分数']) {
-                    const c = queriedInfo[selectedUid]['车辆分数'][cid];
-                    batchUpdates[cid] = {
-                        rank_score: c.rank_score || 0,
-                        season_best_rank_score: c.season_best_rank_score || 0,
-                        recent_palace_score: c.recent_palace_score || []
-                    };
-                }
-                document.getElementById('batch-update-updates').value = JSON.stringify(batchUpdates, null, 2);
-            }
+            document.getElementById('queried-info').innerHTML = infoText;
         }
 
         // 更新用户排名
-        function updateUser() {
+        function updateUserRank() {
             const uid = document.getElementById('update-user-uid').value;
             const score = document.getElementById('update-user-score').value;
             const level = document.getElementById('update-user-level').value;
@@ -445,131 +353,70 @@
                 return;
             }
 
-            fetch('http://10.30.20.18:5001/api/update-user', {
+            fetch('/api/update-user-rank', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    uid: uid,
+                    uid: parseInt(uid),
                     score: parseFloat(score),
                     level: parseInt(level)
                 })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 showResponse('update-user-response', `更新成功: ${JSON.stringify(data)}`, 'success');
-                logError(`用户 ${uid} 排名更新成功`, 'updateUser');
             })
             .catch(error => {
-                showError('update-user-response', `更新失败: ${error}`);
-                logError(`用户 ${uid} 排名更新失败: ${error}`, 'updateUser');
+                showError('update-user-response', `更新失败: ${error.message}`);
             });
         }
 
-        // 更新车辆信息
-        function updateCar() {
-            const uid = document.getElementById('update-car-uid').value;
-            const carId = document.getElementById('update-car-id').value;
-            const rankScore = document.getElementById('update-car-rank-score').value;
-            const seasonScore = document.getElementById('update-car-season-score').value;
-            const palaceScore = document.getElementById('update-car-palace-score').value;
+        // 更新车辆分数
+        document.getElementById('update-car-form').addEventListener('submit', function(e) {
+            e.preventDefault();
 
-            if (!uid || !carId) {
-                showError('update-car-response', '请先查询并选择车辆');
-                return;
-            }
+            const formData = {
+                car_id: document.getElementById('car-id').value,
+                car_score: document.getElementById('car-score').value,
+                palace_score: document.getElementById('palace-score').value,
+                car_rank: document.getElementById('car-rank').value
+            };
 
-            let palaceScores = [];
-            try {
-                if (palaceScore) {
-                    palaceScores = JSON.parse(palaceScore);
-                    if (!Array.isArray(palaceScores)) {
-                        throw new Error('recent_palace_score 必须是数组');
-                    }
-                }
-            } catch (e) {
-                showError('update-car-response', `JSON解析错误: ${e}`);
-                return;
-            }
-
-            fetch('http://10.30.20.18:5001/api/update-car', {
+            fetch('/api/update-car', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    uid: uid,
-                    car_id: carId,
-                    rank_score: parseFloat(rankScore),
-                    season_score: parseFloat(seasonScore),
-                    palace_score: palaceScores
-                })
+                body: JSON.stringify(formData)
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                showResponse('update-car-response', `更新成功: ${JSON.stringify(data)}`, 'success');
-                logError(`用户 ${uid} 车辆 ${carId} 更新成功`, 'updateCar');
+                const responseDiv = document.getElementById('car-update-response');
+                responseDiv.style.display = 'block';
+
+                if (data.status === 'success') {
+                    responseDiv.className = 'response success';
+                    responseDiv.innerHTML = `
+                        <p>更新成功！</p>
+                        <p>车辆ID: ${data.data.car_id}</p>
+                        <p>车辆分数: ${data.data.car_score || '未修改'}</p>
+                        <p>殿堂分数: ${data.data.palace_score || '未修改'}</p>
+                        <p>车辆排名: ${data.data.car_rank || '未修改'}</p>
+                    `;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = `<p>错误: ${data.message}</p>`;
+                }
             })
             .catch(error => {
-                showError('update-car-response', `更新失败: ${error}`);
-                logError(`用户 ${uid} 车辆 ${carId} 更新失败: ${error}`, 'updateCar');
+                const responseDiv = document.getElementById('car-update-response');
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `<p>请求失败: ${error.message}</p>`;
             });
-        }
-
-        // 批量更新车辆信息
-        function batchUpdateCars() {
-            const uid = document.getElementById('batch-update-uid').value;
-            const updatesText = document.getElementById('batch-update-updates').value;
-
-            if (!uid || !updatesText) {
-                showError('batch-update-response', '请填写用户ID和更新内容');
-                return;
-            }
-
-            let updates;
-            try {
-                updates = JSON.parse(updatesText);
-            } catch (e) {
-                showError('batch-update-response', `JSON解析错误: ${e}`);
-                return;
-            }
-
-            fetch('http://10.30.20.18:5001/api/batch-update-user-cars', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    uid: uid,
-                    updates: updates
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResponse('batch-update-response', `批量更新成功: ${JSON.stringify(data)}`, 'success');
-                logError(`用户 ${uid} 批量更新车辆成功`, 'batchUpdateCars');
-            })
-            .catch(error => {
-                showError('batch-update-response', `批量更新失败: ${error}`);
-                logError(`用户 ${uid} 批量更新车辆失败: ${error}`, 'batchUpdateCars');
-            });
-        }
+        });
 
         // 更新比赛记录
         function updateRankList() {
@@ -592,195 +439,71 @@
                 return;
             }
 
-            fetch('http://10.30.20.18:5001/api/update-rank-list', {
+            fetch('/api/update-rank-list', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    uid: uid,
+                    uid: parseInt(uid),
                     new_list: newList
                 })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 showResponse('update-rank-response', `更新成功: ${JSON.stringify(data)}`, 'success');
-                logError(`用户 ${uid} 比赛记录更新成功`, 'updateRankList');
             })
             .catch(error => {
-                showError('update-rank-response', `更新失败: ${error}`);
-                logError(`用户 ${uid} 比赛记录更新失败: ${error}`, 'updateRankList');
+                showError('update-rank-response', `更新失败: ${error.message}`);
             });
         }
 
-        // 批量更新比赛记录
-        function batchUpdateRankList() {
-            const uids = document.getElementById('batch-updateuids').value;
-            const newListText = document.getElementById('batch-updatenew-list').value;
+        // 组合更新
+        function comboUpdate() {
+            const uids = document.getElementById('combo-update-uids').value;
+            const carId = document.getElementById('combo-update-car-id').value;
+            const rankScore = document.getElementById('combo-update-rank-score').value;
+            const seasonScore = document.getElementById('combo-update-season-score').value;
+            const rankListText = document.getElementById('combo-update-rank-list').value;
 
-            if (!uids || !newListText) {
-                showError('batch-update-rank-response', '请填写UID列表和比赛记录');
+            if (!uids || !carId || !rankListText) {
+                showError('combo-update-response', '请填写所有必填字段');
                 return;
             }
 
-            let newList;
+            let rankList;
             try {
-                newList = JSON.parse(newListText);
-                if (!Array.isArray(newList)) {
+                rankList = JSON.parse(rankListText);
+                if (!Array.isArray(rankList)) {
                     throw new Error('比赛记录必须是数组');
                 }
             } catch (e) {
-                showError('batch-update-rank-response', `JSON解析错误: ${e}`);
+                showError('combo-update-response', `JSON解析错误: ${e}`);
                 return;
             }
 
-            fetch('http://10.30.20.18:5001/api/batch-update-rank-list', {
+            fetch('/api/combo-update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     uids: uids.split(',').map(uid => parseInt(uid.trim())),
-                    new_list: newList
+                    car_id: carId,
+                    rank_score: parseFloat(rankScore),
+                    season_score: parseFloat(seasonScore),
+                    rank_list: rankList
                 })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                showResponse('batch-update-rank-response', `批量更新成功: ${JSON.stringify(data)}`, 'success');
-                logError(`批量更新比赛记录成功`, 'batchUpdateRankList');
+                showResponse('combo-update-response', `组合更新成功: ${JSON.stringify(data)}`, 'success');
             })
             .catch(error => {
-                showError('batch-update-rank-response', `批量更新失败: ${error}`);
-                logError(`批量更新比赛记录失败: ${error}`, 'batchUpdateRankList');
-            });
-        }
-        // 增强的fillQueriedInfo函数
-        function fillQueriedInfo() {
-            if (queriedInfo && Object.keys(queriedInfo).length > 0) {
-                const uids = Object.keys(queriedInfo);
-                selectedUid = uids[0];
-
-                // 填充基础UID信息
-                document.getElementById('update-user-uid').value = selectedUid;
-                document.getElementById('update-car-uid').value = selectedUid;
-                document.getElementById('batch-update-uid').value = selectedUid;
-                document.getElementById('update-rank-uid').value = selectedUid;
-                document.getElementById('batch-updateuids').value = uids.join(',');
-
-                // 增强的用户排名填充
-                if (queriedInfo[selectedUid]['用户排名']) {
-                    const userRank = queriedInfo[selectedUid]['用户排名'];
-                    document.getElementById('update-user-score').value = userRank.rank_score || 0;
-                    document.getElementById('update-user-level').value = userRank.rank_level || 0;
-                }
-
-                // 增强的车辆信息处理
-                updateCarIdDropdown();
-
-                // 增强的比赛记录处理
-                if (queriedInfo[selectedUid]['比赛记录']) {
-                    try {
-                        const rankList = queriedInfo[selectedUid]['比赛记录'];
-                        const formattedList = JSON.stringify(rankList, null, 2);
-                        document.getElementById('update-rank-list').value = formattedList;
-                        document.getElementById('batch-updatenew-list').value = formattedList;
-                    } catch (e) {
-                        console.error('比赛记录格式化错误:', e);
-                    }
-                }
-            }
-        }
-
-        // 增强的updateCarIdDropdown函数
-        function updateCarIdDropdown() {
-            const dropdown = document.getElementById('update-car-id');
-            dropdown.innerHTML = '<option value="">请选择车辆ID</option>';
-
-            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
-                carIds = Object.keys(queriedInfo[selectedUid]['车辆分数']);
-
-                // 填充下拉选项
-                carIds.forEach(carId => {
-                    const option = document.createElement('option');
-                    option.value = carId;
-                    option.textContent = carId;
-                    dropdown.appendChild(option);
-                });
-
-                // 自动选择第一个车辆并填充数据
-                if (carIds.length > 0) {
-                    dropdown.value = carIds[0];
-                    fillCarData(carIds[0]);
-                }
-            }
-
-            // 增强的下拉菜单事件处理
-            dropdown.addEventListener('change', function() {
-                if (this.value) {
-                    fillCarData(this.value);
-                } else {
-                    // 清空表单
-                    document.getElementById('update-car-rank-score').value = '';
-                    document.getElementById('update-car-season-score').value = '';
-                    document.getElementById('update-car-palace-score').value = '';
-                }
+                showError('combo-update-response', `组合更新失败: ${error.message}`);
             });
         }
 
-        // 新增的fillCarData函数
-        function fillCarData(carId) {
-            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数'] && queriedInfo[selectedUid]['车辆分数'][carId]) {
-                const car = queriedInfo[selectedUid]['车辆分数'][carId];
-
-                // 填充基础车辆数据
-                document.getElementById('update-car-rank-score').value = car.rank_score || 0;
-                document.getElementById('update-car-season-score').value = car.season_best_rank_score || 0;
-
-                // 处理JSON数据
-                try {
-                    const palaceScore = car.recent_palace_score || [];
-                    document.getElementById('update-car-palace-score').value = JSON.stringify(palaceScore, null, 2);
-                } catch (e) {
-                    console.error('JSON格式化错误:', e);
-                    document.getElementById('update-car-palace-score').value = '[]';
-                }
-
-                // 生成批量更新JSON
-                generateBatchUpdateJson();
-            }
-        }
-
-        // 新增的generateBatchUpdateJson函数
-        function generateBatchUpdateJson() {
-            if (queriedInfo && queriedInfo[selectedUid] && queriedInfo[selectedUid]['车辆分数']) {
-                const batchUpdates = {};
-
-                Object.keys(queriedInfo[selectedUid]['车辆分数']).forEach(carId => {
-                    const car = queriedInfo[selectedUid]['车辆分数'][carId];
-                    batchUpdates[carId] = {
-                        rank_score: car.rank_score || 0,
-                        season_best_rank_score: car.season_best_rank_score || 0,
-                        recent_palace_score: car.recent_palace_score || []
-                    };
-                });
-
-                try {
-                    document.getElementById('batch-update-updates').value = JSON.stringify(batchUpdates, null, 2);
-                } catch (e) {
-                    console.error('批量更新JSON生成错误:', e);
-                }
-            }
-        }
         // 显示响应消息
         function showResponse(elementId, message, type = 'success') {
             const element = document.getElementById(elementId);
@@ -791,16 +514,6 @@
         // 显示错误消息
         function showError(elementId, message) {
             showResponse(elementId, message, 'error');
-        }
-
-        // 记录错误日志
-        function logError(message, functionName) {
-            const now = new Date();
-            const timestamp = now.toLocaleString();
-            const logEntry = document.createElement('div');
-            logEntry.className = 'error-log-entry';
-            logEntry.innerHTML = `<strong>[${timestamp}] ${functionName}:</strong> ${message}`;
-            document.getElementById('error-log-container').prepend(logEntry);
         }
     </script>
 </body>
