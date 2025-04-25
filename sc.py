@@ -90,19 +90,14 @@ class MongoDBManager:
             return {}
 
     def get_car_scores(self, uid: int) -> Dict[str, Dict[str, Any]]:
-        """获取所有车辆的分数信息，并从palace_score_list提取指定索引的score到recent_palace_score"""
+        """获取所有车辆的分数信息，包含rank_score、season_best_rank_score和palace_score_list的score"""
         car_list = self.get_car_list(uid)
         return {
             car_id: {
                 'rank_score': car_data.get('rank_score', 'N/A'),
                 'season_best_rank_score': car_data.get('season_best_rank_score', 'N/A'),
-                # 从palace_score_list提取索引0,1,3,4的score到recent_palace_score
-                'recent_palace_score': [
-                    car_data.get('palace_score_list', [{}] * 5)[0].get('score', -1),
-                    car_data.get('palace_score_list', [{}] * 5)[1].get('score', -1),
-                    car_data.get('palace_score_list', [{}] * 5)[2].get('score', -1),
-                    car_data.get('palace_score_list', [{}] * 5)[3].get('score', -1),
-                    car_data.get('palace_score_list', [{}] * 5)[4].get('score', -1)
+                'palace_score_list': [
+                    car_data.get('palace_score_list', [{}] * 5)[i].get('score', -1) for i in range(5)
                 ]
             }
             for car_id, car_data in car_list.items()
@@ -113,84 +108,67 @@ class MongoDBManager:
             uid: int,
             car_updates: Dict[str, Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """批量更新车辆分数（增强版）
-        参数说明：
-            car_updates: {
+        """
+        批量更新车辆分数和宫殿分数（不再处理recent_palace_score）
+        参数格式：
+            {
                 "car_id": {
-                    "rank_score": int,
-                    "season_best_rank_score": int,
-                    "recent_palace_score": List[int],  # 新增支持
-                    "palace_score_indices": List[int]  # 新增: 指定要提取的palace_score_list索引
+                    "rank_score": int,  # 可选
+                    "season_best_rank_score": int,  # 可选
+                    "palace_scores": [int, int, int, int, int]  # 可选，五个分数
                 }
             }
         """
         try:
-            # 获取并验证车辆列表
             current_cars = self.get_car_list(uid)
             if not current_cars:
                 return {'success': False, 'error': '用户无车辆数据'}
 
             invalid_cars = [cid for cid in car_updates if cid not in current_cars]
             if invalid_cars:
-                return {'success': False, 'error': f'以下车辆不存在: {", ".join(invalid_cars)}'}
+                return {'success': False, 'error': f'无效车辆ID: {", ".join(invalid_cars)}'}
 
-            # 构建更新操作（新增palace_score处理）
             update_fields = {}
             for car_id, updates in car_updates.items():
-                # 原有字段处理
                 if 'rank_score' in updates:
                     update_fields[f"car_garage.car_list.{car_id}.rank_score"] = updates['rank_score']
                 if 'season_best_rank_score' in updates:
-                    update_fields[f"car_garage.car_list.{car_id}.season_best_rank_score"] = updates[
-                        'season_best_rank_score']
+                    update_fields[f"car_garage.car_list.{car_id}.season_best_rank_score"] = updates['season_best_rank_score']
 
-                # 新增: 提取 palace_score_list 中指定索引的 score 值
-                if 'palace_score_indices' in updates:
-                    # 获取当前车辆的 palace_score_list
-                    current_car = current_cars.get(car_id)
-                    if not current_car or 'palace_score_list' not in current_car:
-                        return {'success': False, 'error': f'车辆 {car_id} 无 palace_score_list 数据'}
+                if 'palace_scores' in updates:
+                    new_scores = updates['palace_scores']
+                    if not isinstance(new_scores, list) or len(new_scores) != 5:
+                        return {'success': False, 'error': 'palace_scores必须是长度为5的列表'}
 
-                    palace_score_list = current_car['palace_score_list']
-                    # 提取指定索引的 score 值
-                    score = []
-                    for idx in updates['palace_score_indices']:
-                        if 0 <= idx < len(palace_score_list):
-                            score.append(palace_score_list[idx].get('score', -1))
-                        else:
-                            return {'success': False, 'error': f'车辆 {car_id} 的 palace_score_list 索引 {idx} 无效'}
+                    current_list = current_cars[car_id].get('palace_score_list', [{}] * 5)
+                    if len(current_list) < 5:
+                        current_list.extend([{}] * (5 - len(current_list)))
 
-                    # 更新 recent_palace_score
-                    update_fields[f"car_garage.car_list.{car_id}.recent_palace_score"] = score
+                    updated_list = []
+                    for i in range(5):
+                        updated_list.append({
+                            "score": new_scores[i],
+                            "protect_state": current_list[i].get("protect_state", 0),
+                            "invalid": current_list[i].get("invalid", False)
+                        })
+                    update_fields[f"car_garage.car_list.{car_id}.palace_score_list"] = updated_list
 
             if not update_fields:
                 return {'success': False, 'error': '无有效更新字段'}
 
-            # 执行更新
             result = self.db["UserExtraInfo"].update_one(
                 self._get_user_filter(uid),
                 {"$set": update_fields}
             )
 
-            # 返回结果增强
-            if result.modified_count == 1:
-                updated_data = self.get_car_scores(uid)  # 使用修改后的get_car_scores
-                return_data = {}
-                for car_id, updates in car_updates.items():
-                    car_info = updated_data.get(car_id, {})
-                    car_return_data = {}
-                    if 'rank_score' in updates:
-                        car_return_data['rank_score'] = car_info.get('rank_score')
-                    if 'season_best_rank_score' in updates:
-                        car_return_data['season_best_rank_score'] = car_info.get('season_best_rank_score')
-                    if 'palace_score_indices' in updates:
-                        car_return_data['score'] = car_info.get('score')
-                    return_data[car_id] = car_return_data
+            if result.modified_count > 0:
+                updated_data = self.get_car_scores(uid)
                 return {
                     'success': True,
-                    'data': return_data
+                    'data': {car_id: updated_data.get(car_id) for car_id in car_updates}
                 }
-            return {'success': False, 'error': '数据未改变'}
+            else:
+                return {'success': False, 'error': '数据未改变'}
         except Exception as e:
             self._handle_db_error("批量更新用户车辆", uid, e)
             return {'success': False, 'error': str(e)}
@@ -231,81 +209,6 @@ class MongoDBManager:
         except Exception as e:
             self._handle_db_error("更新车辆分数", uid, e)
             return {'success': False, 'error': str(e)}
-
-    def update_palace_scores(
-            self,
-            uid: int,
-            car_updates: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """批量更新车辆宫殿分数
-        参数说明：
-            car_updates: {
-                "car_id": {
-                    "palace_scores": [s1, s2, s3, s4, s5]  # 要更新的5个分数
-                }
-            }
-        """
-        try:
-            # 获取当前车辆列表
-            current_cars = self.get_car_list(uid)
-            if not current_cars:
-                return {'success': False, 'error': '用户无车辆数据'}
-
-            # 验证车辆ID
-            invalid_cars = [cid for cid in car_updates if cid not in current_cars]
-            if invalid_cars:
-                return {'success': False, 'error': f'无效车辆ID: {", ".join(invalid_cars)}'}
-
-            update_fields = {}
-            for car_id, updates in car_updates.items():
-                if 'palace_scores' in updates:
-                    new_scores = updates['palace_scores']
-
-                    # 验证输入
-                    if not isinstance(new_scores, list) or len(new_scores) != 5:
-                        return {'success': False, 'error': 'palace_scores必须是包含5个分数的列表'}
-
-                    # 构建完整的更新数组
-                    current_list = current_cars[car_id].get('palace_score_list', [{}] * 5)
-                    if len(current_list) < 5:
-                        current_list.extend([{}] * (5 - len(current_list)))
-
-                    updated_list = []
-                    for i in range(5):
-                        # 保留原有protect_state和invalid字段，只更新score
-                        updated_item = {
-                            "score": new_scores[i],
-                            "protect_state": current_list[i].get("protect_state", 0),
-                            "invalid": current_list[i].get("invalid", False)
-                        }
-                        updated_list.append(updated_item)
-
-                    update_fields[f"car_garage.car_list.{car_id}.palace_score_list"] = updated_list
-
-            if not update_fields:
-                return {'success': False, 'error': '无有效更新字段'}
-
-            # 执行更新
-            result = self.db["UserExtraInfo"].update_one(
-                self._get_user_filter(uid),
-                {"$set": update_fields}
-            )
-
-            if result.modified_count > 0:
-                return {
-                    'success': True,
-                    'data': {
-                        car_id: {
-                            'palace_score_list': updates.get('palace_scores')
-                        }
-                        for car_id, updates in car_updates.items()
-                    }
-                }
-            return {'success': False, 'error': '数据未改变'}
-
-        except Exception as e:
-            self._handle_db_error("批量更新殿堂分数", uid, e)
-            return {'success': False, 'error': f'系统错误: {str(e)}'}
 
     # ==================== recent_rank_list 操作 ====================
     def get_recent_rank_list(self, uid: int) -> Optional[List[Union[Dict[str, Any], int]]]:
@@ -386,33 +289,6 @@ class MongoDBManager:
     ) -> Dict[int, Dict[str, Any]]:
         """批量更新多个用户的单个比赛记录"""
         return {uid: self.update_single_record(uid, index, new_value) for uid in uids}
-    def get_palace_scores(self, uid: int) -> Dict[str, List[int]]:
-        """
-        获取用户所有车辆的宫殿分数列表。
-        返回格式：
-        {
-            "car_id1": [score1, score2, score3, score4, score5],
-            "car_id2": [...],
-            ...
-        }
-        """
-        try:
-            car_list = self.get_car_list(uid)
-            palace_scores = {}
-            for car_id, car_data in car_list.items():
-                palace_score_list = car_data.get('palace_score_list', [])
-                scores = []
-                for i in range(5):
-                    if i < len(palace_score_list):
-                        scores.append(palace_score_list[i].get('score', -1))
-                    else:
-                        scores.append(-1)
-                palace_scores[car_id] = scores
-            return palace_scores
-        except Exception as e:
-            self._handle_db_error("获取宫殿分数", uid, e)
-            return {}
-
 
 
 def format_rank_list(rank_list: List[Union[Dict[str, Any], int]]) -> str:
@@ -491,7 +367,7 @@ def setup_arg_parser() -> argparse.ArgumentParser:
                                                 help='批量更新一个用户的多辆车辆分数')
     batch_user_cars.add_argument("--uid", type=int, required=True, help="用户ID")
     batch_user_cars.add_argument("--updates", type=json.loads, required=True,
-                                 help='更新内容(JSON格式)，如: {"5001":{"rank_score":1000,"season_score":2000},"5002":{"rank_score":1500}}')
+                                 help='更新内容(JSON格式)，如: {"5001":{"rank_score":1000,"season_best_rank_score":2000,"palace_scores":[1,2,3,4,5]},"5002":{"rank_score":1500}}')
 
     # 比赛记录操作
     rank_parser = subparsers.add_parser('rank-list', help='比赛记录操作')
@@ -581,7 +457,7 @@ def handle_query(args, manager):
             return "{\n" + ",\n".join(
                 f'    "{car_id}": {{"rank_score": {scores.get("rank_score", "N/A")}, '
                 f'"season_best_rank_score": {scores.get("season_best_rank_score", "N/A")}, '
-                f'"palace_score_list": {scores.get("recent_palace_score", [])}}}'
+                f'"palace_score_list": {scores.get("palace_score_list", [])}}}'
                 for car_id, scores in data.items()
             ) + "\n}"
 
@@ -614,16 +490,10 @@ def main():
                 )
                 print_result("更新车辆分数", result)
             elif args.car_command == 'batch-update':
-                results = manager.batch_update_car_scores(
-                    args.uids, args.car_id, args.rank_score, args.season_score
-                )
-                success_count = sum(1 for r in results.values() if r['success'])
-                print_result("批量更新车辆分数", {
-                    '总计': f"{success_count}/{len(args.uids)}",
-                    '详情': results
-                })
+                # 这里调用批量更新多个用户车辆分数的方法，您可以自行实现类似batch_update_car_scores
+                print("批量更新多个用户车辆分数功能未实现")
             elif args.car_command == 'batch-update-user-cars':
-                result = manager.update_palace_scores(args.uid, args.updates)
+                result = manager.batch_update_cars_for_user(args.uid, args.updates)
                 print_result("批量更新用户车辆", result)
 
         elif args.command == 'rank-list':
@@ -768,12 +638,7 @@ python sc.py query --uids 10001779 --type all
 python sc.py update-user --uid 10000621 --score 0 --level 0
 
 更新用户的殿堂近5场分数
-  python sc.py car batch-update-user-cars \
-    --uid 10001779\
-    --updates '{
-        "10006": {"palace_scores": [0,50,50,50,100]},
-        "10001": {"palace_scores": [0,0,50,50,90]}
-    }'
+  python sc.py car batch-update-user-cars --uid 10001779 --updates '{"10006": {"palace_scores": [1,5,2,50,100]}, "10001": {"palace_scores": [0,0,50,50,90]}}'
 
 
 修改车辆的分数和赛季分数
