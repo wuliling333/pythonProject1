@@ -18,61 +18,40 @@ app.template_folder = current_directory
 manager = MongoDBManager()
 manager.connect()  # 连接 MongoDB 数据库
 
-
 @app.route('/')
 def index():
     # 根路由，返回模板文件 yc.html，作为首页
     return render_template('yc.html')
 
-
-@app.route('/query', methods=['POST'])
+# 查询用户排名和车辆分数
+@app.route('/query', methods=['GET'])
 def query():
     try:
-        data = request.get_json(force=True, silent=True) or request.form
-        # 支持单个 uid 或多个 uids 查询
-        uid = data.get('uid')
-        uids = data.get('uids')
-        query_type = data.get('type', 'all')
+        uids = request.args.get('uids')
+        query_type = request.args.get('type', 'all')
+
+        if not uids:
+            return jsonify({'success': False, 'error': '缺少uids参数'})
+
+        uids = [int(uid.strip()) for uid in uids.split(',') if uid.strip().isdigit()]
 
         results = {}
-
-        if uids:
-            # 批量查询，uids 应该是列表或逗号分隔字符串
-            if isinstance(uids, str):
-                uids = [int(x.strip()) for x in uids.split(',') if x.strip().isdigit()]
-            elif isinstance(uids, list):
-                uids = [int(x) for x in uids if isinstance(x, int) or (isinstance(x, str) and x.isdigit())]
-            else:
-                return jsonify({'success': False, 'error': 'uids 格式错误，应该是列表或逗号分隔字符串'})
-
-            results = {}
-            for single_uid in uids:
-                user_data = {}
-                if query_type in ["user", "all"]:
-                    user_data["user_rank"] = manager.get_user_rank(single_uid)
-                if query_type in ["car", "all"]:
-                    user_data["car_scores"] = manager.get_car_scores(single_uid)
-                if query_type in ["rank-list", "all"]:
-                    user_data["rank_list"] = manager.get_recent_rank_list(single_uid)
-                results[str(single_uid)] = user_data
-
-        elif uid:
-            uid = int(uid)
+        for uid in uids:
+            user_data = {}
             if query_type in ["user", "all"]:
-                results["user_rank"] = manager.get_user_rank(uid)
+                user_data["user_rank"] = manager.get_user_rank(uid)
             if query_type in ["car", "all"]:
-                results["car_scores"] = manager.get_car_scores(uid)
+                user_data["car_scores"] = manager.get_car_scores(uid)
             if query_type in ["rank-list", "all"]:
-                results["rank_list"] = manager.get_recent_rank_list(uid)
-        else:
-            return jsonify({'success': False, 'error': '未提供 uid 或 uids 参数'})
+                user_data["rank_list"] = manager.get_recent_rank_list(uid)
+            results[str(uid)] = user_data
 
         return jsonify({'success': True, 'data': results})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-
+# 更新用户排名和分数
 @app.route('/update-user', methods=['POST'])
 def update_user():
     try:
@@ -85,49 +64,29 @@ def update_user():
             return jsonify({'success': False, 'error': '参数不完整'})
 
         result = manager.update_user_rank(uid, score, level)
-        return jsonify({'success': bool(result), 'data': result})
+        return jsonify({'success': True if result else False, 'data': result})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-
+# 修改车辆排位分和殿堂分
 @app.route('/car/batch-update-user-cars', methods=['POST'])
 def batch_update_user_cars():
     try:
-        # 统一处理不同格式的请求数据
-        if request.content_type == 'application/json':
-            data = request.get_json(force=True)
-        else:
-            data = request.form.to_dict()
-            if 'updates' in data:
-                try:
-                    data['updates'] = json.loads(data['updates'])
-                except json.JSONDecodeError:
-                    return jsonify({'success': False, 'error': 'updates参数必须是合法JSON'})
-
+        data = request.get_json(force=True)
         uid = data.get('uid')
         updates = data.get('updates')
 
-        # 参数校验
         if not uid or not updates:
-            return jsonify({'success': False, 'error': '缺少uid或updates参数'})
+            return jsonify({'success': False, 'error': '缺少参数'})
 
-        # 统一处理字符串/对象格式的updates
-        if isinstance(updates, str):
-            try:
-                updates = json.loads(updates)
-            except json.JSONDecodeError:
-                return jsonify({'success': False, 'error': 'updates不是有效的JSON'})
-
-        # 调用MongoDB更新逻辑
-        result = manager.batch_update_cars_for_user(int(uid), updates)
+        result = manager.batch_update_cars_for_user(uid, updates)
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({'success': False, 'error': f'服务器错误: {str(e)}'})
+        return jsonify({'success': False, 'error': str(e)})
 
-
-
+# 修改比赛排名
 @app.route('/rank-list/batch-update-list', methods=['POST'])
 def batch_update_rank_list():
     try:
@@ -145,15 +104,14 @@ def batch_update_rank_list():
         else:
             return jsonify({'success': False, 'error': 'uids 格式错误'})
 
-        if not isinstance(new_list, list):
-            return jsonify({'success': False, 'error': 'new_list 应该是列表格式'})
+        result = {}
+        for uid in uids:
+            res = manager.update_recent_rank_list(uid, new_list)
+            result[uid] = res
 
-        result = manager.batch_update_recent_rank_list(uids, new_list)
         return jsonify({'success': True, 'data': result})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)
