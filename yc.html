@@ -1,398 +1,682 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MongoDB数据管理工具</title>
+    <title>用户数据查询</title>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
+            padding: 0;
         }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+            padding: 20px;
+            font-size: 14px;
+            overflow-x: hidden;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+
         h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 18px;
         }
-        h2 {
-            color: #2980b9;
-            margin-top: 30px;
-        }
-        .section {
+
+        .query-section {
             margin-bottom: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 5px;
-            border-left: 4px solid #3498db;
         }
+
+        form {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
         label {
             display: block;
-            margin: 10px 0 5px;
+            margin-bottom: 4px;
             font-weight: bold;
+            font-size: 14px;
         }
-        input[type="text"],
-        input[type="number"],
-        textarea {
+
+        input, select, textarea {
             width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
+            padding: 6px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            border-radius: 3px;
+            font-size: 13px;
         }
-        textarea {
-            min-height: 100px;
-            font-family: monospace;
-        }
+
         button {
-            background-color: #3498db;
+            background-color: #4CAF50;
             color: white;
+            padding: 8px 12px;
             border: none;
-            padding: 10px 15px;
-            margin-top: 10px;
-            border-radius: 4px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
+            font-size: 13px;
+            width: 100%;
+            margin-top: 6px;
         }
+
         button:hover {
-            background-color: #2980b9;
+            background-color: #45a049;
         }
-        button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-        pre {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            margin-top: 15px;
-        }
-        .status {
+
+        #result {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
             padding: 10px;
-            margin: 10px 0;
             border-radius: 4px;
         }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+
+        .result-container {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
+
+        .result-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .result-label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
         .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            color: red;
+            font-size: 14px;
         }
-        .loading {
-            color: #17a2b8;
-            font-style: italic;
+
+        /* 左右切换样式 */
+        .tab-container {
+            display: flex;
+            flex-direction: column;
         }
+
+        .tab-buttons {
+            display: flex;
+            background-color: #f5f5f5;
+            border-radius: 6px 6px 0 0;
+            overflow: hidden;
+        }
+
+        .tab-button {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab-button.active {
+            background-color: #ddd;
+            color: #333;
+        }
+
+        .tab-content {
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 15px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* 滚动到顶部按钮 */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .scroll-to-top.visible {
+            display: block;
+        }
+
+        /* 修复结果区域的滚动条样式 */
+        #result::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #result::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #result::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        #result::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>MongoDB数据管理工具</h1>
-        <p>服务器地址: <strong>http://192.168.3.52:5001</strong></p>
+        <h1>用户数据查询</h1>
 
-        <!-- 查询用户数据 -->
-        <div class="section">
-            <h2>查询用户数据</h2>
-            <label for="queryUid">用户ID (单个或多个，用逗号分隔):</label>
-            <input type="text" id="queryUid" placeholder="例如: 10001779 或 10001779,10001780">
-
-            <label for="queryType">查询类型:</label>
-            <select id="queryType">
-                <option value="all">全部数据</option>
-                <option value="user">仅用户排名</option>
-                <option value="car">仅车辆数据</option>
-                <option value="rank-list">仅排行榜</option>
-            </select>
-
-            <button id="btnQuery" onclick="queryUser()">查询</button>
-            <div id="queryStatus" class="status"></div>
-            <pre id="queryResult"></pre>
+        <!-- 查询部分 -->
+        <div class="query-section">
+            <form id="query-form">
+                <div class="form-group">
+                    <label for="uid">UID（单个查询）：</label>
+                    <input type="text" id="uid" name="uid" placeholder="输入单个用户ID">
+                </div>
+                <div class="form-group">
+                    <label for="type">查询类型：</label>
+                    <select id="type" name="type">
+                        <option value="all">所有数据</option>
+                        <option value="user">用户排名</option>
+                        <option value="car">车辆信息</option>
+                        <option value="rank-list">比赛记录</option>
+                    </select>
+                </div>
+                <button type="submit">查询</button>
+            </form>
+            <div id="result"></div>
         </div>
 
-        <!-- 更新用户排名 -->
-        <div class="section">
-            <h2>更新用户排名</h2>
-            <label for="updateUid">用户ID:</label>
-            <input type="text" id="updateUid" placeholder="例如: 10001779">
+        <!-- 更新部分，使用左右切换的标签样式 -->
+        <div class="update-section">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" data-tab="update-user">更新用户排名</button>
+                    <button class="tab-button" data-tab="batch-update-cars">批量更新车辆</button>
+                    <button class="tab-button" data-tab="batch-update-rank-list">批量更新比赛记录</button>
+                </div>
+                <div class="tab-content">
+                    <!-- 更新用户排名 -->
+                    <div id="update-user-tab" class="tab-pane active">
+                        <form id="update-user-form">
+                            <div class="form-group">
+                                <label for="update-uid">UID：</label>
+                                <input type="text" id="update-uid" name="uid" placeholder="输入用户ID">
+                            </div>
+                            <div class="form-group">
+                                <label for="update-score">分数：</label>
+                                <input type="text" id="update-score" name="score" placeholder="输入新的分数">
+                            </div>
+                            <div class="form-group">
+                                <label for="update-level">等级：</label>
+                                <input type="text" id="update-level" name="level" placeholder="输入新的等级">
+                            </div>
+                            <button type="submit">更新用户排名</button>
+                        </form>
+                        <div id="update-user-result"></div>
+                    </div>
 
-            <label for="updateScore">Rank Score:</label>
-            <input type="number" id="updateScore" placeholder="输入分数">
+                    <!-- 批量更新车辆 -->
+                    <div id="batch-update-cars-tab" class="tab-pane">
+                        <form id="batch-update-cars-form">
+                            <div class="form-group">
+                                <label for="batch-uid">UID：</label>
+                                <input type="text" id="batch-uid" name="uid" placeholder="输入用户ID">
+                            </div>
+                            <div class="form-group">
+                                <label for="batch-updates">更新内容（JSON格式）：</label>
+                                <textarea id="batch-updates" name="updates" rows="4" placeholder='例如: {"10006": {"palace_scores": [1,5,2,50,100]}, "10001": {"palace_scores": [0,0,50,50,90]}}'></textarea>
+                            </div>
+                            <button type="submit">批量更新车辆</button>
+                        </form>
+                        <div id="batch-update-cars-result"></div>
+                    </div>
 
-            <label for="updateLevel">Rank Level:</label>
-            <input type="number" id="updateLevel" placeholder="输入等级">
-
-            <button id="btnUpdateUser" onclick="updateUserRank()">提交更新</button>
-            <div id="updateUserStatus" class="status"></div>
-            <pre id="updateUserResult"></pre>
-        </div>
-
-        <!-- 批量更新车辆数据 -->
-        <div class="section">
-            <h2>批量更新车辆数据</h2>
-            <label for="updateCarsUid">用户ID:</label>
-            <input type="text" id="updateCarsUid" placeholder="例如: 10001779">
-
-            <label for="updateCarsData">车辆更新数据 (JSON格式):</label>
-            <textarea id="updateCarsData" placeholder='示例:
-{
-  "10006": {
-    "palace_scores": [10, 20, 30, 40, 50],
-    "rank_score": 210,
-    "season_best_rank_score": 220
-  },
-  "10007": {
-    "palace_scores": [5, 15, 25, 35, 45],
-    "rank_score": 180,
-    "season_best_rank_score": 190
-  }
-}'></textarea>
-
-            <button id="btnUpdateCars" onclick="batchUpdateCars()">批量更新</button>
-            <div id="updateCarsStatus" class="status"></div>
-            <pre id="updateCarsResult"></pre>
-        </div>
-
-        <!-- 批量更新排行榜 -->
-        <div class="section">
-            <h2>批量更新排行榜</h2>
-            <label for="updateRankListUids">用户IDs (多个用逗号分隔):</label>
-            <input type="text" id="updateRankListUids" placeholder="例如: 10001779,10001780,10001781">
-
-            <label for="updateRankListData">新排行榜数据 (JSON数组格式):</label>
-            <textarea id="updateRankListData" placeholder='示例:
-[
-    {"rank": 1, "score": 5000},
-    {"rank": 2, "score": 4500},
-    {"rank": 3, "score": 4000}
-]'></textarea>
-
-            <button id="btnUpdateRankList" onclick="batchUpdateRankList()">更新排行榜</button>
-            <div id="updateRankListStatus" class="status"></div>
-            <pre id="updateRankListResult"></pre>
+                    <!-- 批量更新比赛记录 -->
+                    <div id="batch-update-rank-list-tab" class="tab-pane">
+                        <form id="batch-update-rank-list-form">
+                            <div class="form-group">
+                                <label for="batch-rank-uids">UIDs（逗号分隔）：</label>
+                                <input type="text" id="batch-rank-uids" name="uids" placeholder="输入多个用户ID，用逗号分隔">
+                            </div>
+                            <div class="form-group">
+                                <label for="batch-rank-new-list">新比赛记录列表（JSON格式）：</label>
+                                <textarea id="batch-rank-new-list" name="new_list" rows="2" placeholder='例如: [1, 2, 3]'></textarea>
+                            </div>
+                            <button type="submit">批量更新比赛记录</button>
+                        </form>
+                        <div id="batch-update-rank-list-result"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- 添加滚动到顶部的按钮 -->
+    <div class="scroll-to-top" id="scroll-to-top">↑</div>
+
     <script>
-        // 显示状态信息
-        function showStatus(elementId, message, isError = false) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.className = isError ? 'status error' : 'status success';
-            element.style.display = 'block';
+        // 配置常量
+        const CONFIG = {
+          API_BASE_URL: 'http://10.30.20.18:5001',
+          MAX_RETRIES: 2,
+          RETRY_DELAY: 1000
+        };
+
+        // DOM 元素缓存
+        const DOM = {
+          queryForm: document.getElementById('query-form'),
+          resultContainer: document.getElementById('result'),
+          updateForms: {
+            user: document.getElementById('update-user-form'),
+            cars: document.getElementById('batch-update-cars-form'),
+            rankList: document.getElementById('batch-update-rank-list-form')
+          },
+          resultElements: {
+            user: document.getElementById('update-user-result'),
+            cars: document.getElementById('batch-update-cars-result'),
+            rankList: document.getElementById('batch-update-rank-list-result')
+          }
+        };
+
+        // 初始化函数
+        function init() {
+          setupEventListeners();
+          setupTabNavigation();
+          setupScrollToTop();
         }
 
-        // 清除状态信息
-        function clearStatus(elementId) {
-            const element = document.getElementById(elementId);
-            element.style.display = 'none';
+        // 事件监听器设置
+        function setupEventListeners() {
+          // 查询表单
+          DOM.queryForm.addEventListener('submit', handleQuerySubmit);
+
+          // 更新表单
+          DOM.updateForms.user.addEventListener('submit', handleUserUpdate);
+          DOM.updateForms.cars.addEventListener('submit', handleCarsUpdate);
+          DOM.updateForms.rankList.addEventListener('submit', handleRankListUpdate);
         }
 
-        // 查询用户数据
-        async function queryUser() {
-            const uidInput = document.getElementById('queryUid').value.trim();
-            const queryType = document.getElementById('queryType').value;
-            const resultElement = document.getElementById('queryResult');
-            const statusElement = document.getElementById('queryStatus');
+        // 查询处理
+        async function handleQuerySubmit(event) {
+          event.preventDefault();
 
-            clearStatus('queryStatus');
-            resultElement.textContent = '查询中...';
+          const formData = new FormData(event.target);
+          const requestData = {
+            uid: formData.get('uid'),
+            type: formData.get('type')
+          };
 
-            if (!uidInput) {
-                showStatus('queryStatus', '请输入用户ID', true);
-                return;
+          try {
+            const data = await fetchWithRetry(`${CONFIG.API_BASE_URL}/query`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestData)
+            });
+
+            if (data.success) {
+              displayResults(data.data);
+              fillUpdateForms(data.data);
+            } else {
+              showError(DOM.resultContainer, `查询失败: ${data.error}`);
             }
-
-            try {
-                const response = await fetch('http://192.168.3.52:5001/query', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        uid: uidInput.includes(',') ? null : uidInput,
-                        uids: uidInput.includes(',') ? uidInput : null,
-                        type: queryType
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    resultElement.textContent = JSON.stringify(data.data, null, 2);
-                    showStatus('queryStatus', '查询成功');
-                } else {
-                    resultElement.textContent = '查询失败: ' + (data.error || '未知错误');
-                    showStatus('queryStatus', '查询失败: ' + (data.error || '未知错误'), true);
-                }
-            } catch (error) {
-                resultElement.textContent = '请求异常: ' + error.message;
-                showStatus('queryStatus', '请求异常: ' + error.message, true);
-            }
+          } catch (error) {
+            showError(DOM.resultContainer, `查询失败: ${error.message}`);
+          }
         }
 
-        // 更新用户排名
-        async function updateUserRank() {
-            const uid = document.getElementById('updateUid').value.trim();
-            const score = document.getElementById('updateScore').value.trim();
-            const level = document.getElementById('updateLevel').value.trim();
-            const resultElement = document.getElementById('updateUserResult');
-            const statusElement = document.getElementById('updateUserStatus');
+        // 用户更新处理
+        async function handleUserUpdate(event) {
+          event.preventDefault();
 
-            clearStatus('updateUserStatus');
-            resultElement.textContent = '提交中...';
+          const formData = new FormData(event.target);
+          const requestData = {
+            uid: formData.get('uid'),
+            score: formData.get('score'),
+            level: formData.get('level')
+          };
 
-            if (!uid || !score || !level) {
-                showStatus('updateUserStatus', '请填写所有字段', true);
-                return;
-            }
+          if (!validateRequiredFields(requestData)) {
+            showError(DOM.resultElements.user, '所有字段都是必填的');
+            return;
+          }
 
-            try {
-                const response = await fetch('http://192.168.3.52:5001/update-user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        uid: parseInt(uid),
-                        score: parseInt(score),
-                        level: parseInt(level)
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    resultElement.textContent = JSON.stringify(data.data, null, 2);
-                    showStatus('updateUserStatus', '更新成功');
-                } else {
-                    resultElement.textContent = '更新失败: ' + (data.error || '未知错误');
-                    showStatus('updateUserStatus', '更新失败: ' + (data.error || '未知错误'), true);
-                }
-            } catch (error) {
-                resultElement.textContent = '请求异常: ' + error.message;
-                showStatus('updateUserStatus', '请求异常: ' + error.message, true);
-            }
+          await processUpdate(
+            `${CONFIG.API_BASE_URL}/update-user`,
+            requestData,
+            DOM.resultElements.user
+          );
         }
 
-        // 批量更新车辆数据
-        async function batchUpdateCars() {
-            const uid = document.getElementById('updateCarsUid').value.trim();
-            const updatesText = document.getElementById('updateCarsData').value.trim();
-            const resultElement = document.getElementById('updateCarsResult');
-            const statusElement = document.getElementById('updateCarsStatus');
+        // 车辆批量更新处理
+        async function handleCarsUpdate(event) {
+          event.preventDefault();
 
-            clearStatus('updateCarsStatus');
-            resultElement.textContent = '提交中...';
+          const formData = new FormData(event.target);
+          const updates = formData.get('updates');
 
-            if (!uid || !updatesText) {
-                showStatus('updateCarsStatus', '请填写用户ID和更新数据', true);
-                return;
-            }
+          try {
+            JSON.parse(updates); // 验证JSON格式
+            const requestData = {
+              uid: formData.get('uid'),
+              updates: JSON.parse(updates)
+            };
 
-            let updates;
-            try {
-                updates = JSON.parse(updatesText);
-            } catch (e) {
-                resultElement.textContent = 'JSON解析错误: ' + e.message;
-                showStatus('updateCarsStatus', 'JSON格式错误: ' + e.message, true);
-                return;
-            }
-
-            try {
-                const response = await fetch('http://192.168.3.52:5001/car/batch-update-user-cars', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        uid: parseInt(uid),
-                        updates: updates
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    resultElement.textContent = JSON.stringify(data.data, null, 2);
-                    showStatus('updateCarsStatus', '批量更新成功');
-                } else {
-                    resultElement.textContent = '更新失败: ' + (data.error || '未知错误');
-                    showStatus('updateCarsStatus', '更新失败: ' + (data.error || '未知错误'), true);
-                }
-            } catch (error) {
-                resultElement.textContent = '请求异常: ' + error.message;
-                showStatus('updateCarsStatus', '请求异常: ' + error.message, true);
-            }
+            await processUpdate(
+              `${CONFIG.API_BASE_URL}/car/batch-update-user-cars`,
+              requestData,
+              DOM.resultElements.cars
+            );
+          } catch (e) {
+            showError(DOM.resultElements.cars, '更新内容必须是有效的JSON格式');
+          }
         }
 
-        // 批量更新排行榜
-        async function batchUpdateRankList() {
-            const uids = document.getElementById('updateRankListUids').value.trim();
-            const newListText = document.getElementById('updateRankListData').value.trim();
-            const resultElement = document.getElementById('updateRankListResult');
-            const statusElement = document.getElementById('updateRankListStatus');
+        // 比赛记录批量更新处理
+        async function handleRankListUpdate(event) {
+          event.preventDefault();
 
-            clearStatus('updateRankListStatus');
-            resultElement.textContent = '提交中...';
+          const formData = new FormData(event.target);
+          const newList = formData.get('new-list');
 
-            if (!uids || !newListText) {
-                showStatus('updateRankListStatus', '请填写用户IDs和排行榜数据', true);
-                return;
-            }
+          try {
+            JSON.parse(newList); // 验证JSON格式
+            const requestData = {
+              uids: formData.get('uids').split(',').map(uid => uid.trim()),
+              new_list: JSON.parse(newList)
+            };
 
-            let newList;
-            try {
-                newList = JSON.parse(newListText);
-            } catch (e) {
-                resultElement.textContent = 'JSON解析错误: ' + e.message;
-                showStatus('updateRankListStatus', 'JSON格式错误: ' + e.message, true);
-                return;
-            }
-
-            try {
-                const response = await fetch('http://192.168.3.52:5001/rank-list/batch-update-list', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        uids: uids,
-                        new_list: newList
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    resultElement.textContent = JSON.stringify(data.data, null, 2);
-                    showStatus('updateRankListStatus', '排行榜更新成功');
-                } else {
-                    resultElement.textContent = '更新失败: ' + (data.error || '未知错误');
-                    showStatus('updateRankListStatus', '更新失败: ' + (data.error || '未知错误'), true);
-                }
-            } catch (error) {
-                resultElement.textContent = '请求异常: ' + error.message;
-                showStatus('updateRankListStatus', '请求异常: ' + error.message, true);
-            }
+            await processUpdate(
+              `${CONFIG.API_BASE_URL}/rank-list/batch-update-list`,
+              requestData,
+              DOM.resultElements.rankList
+            );
+          } catch (e) {
+            showError(DOM.resultElements.rankList, '比赛记录必须是有效的JSON格式');
+          }
         }
+
+        // 通用更新处理
+        async function processUpdate(url, data, resultElement) {
+          try {
+            const response = await fetchWithRetry(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+
+            if (response.success) {
+              showSuccess(resultElement, '更新成功', response.data);
+              scrollToTop();
+            } else {
+              showError(resultElement, `更新失败: ${response.error}`);
+            }
+          } catch (error) {
+            showError(resultElement, `更新失败: ${error.message}`);
+          }
+        }
+
+        // 带重试的fetch请求
+        async function fetchWithRetry(url, options, retries = CONFIG.MAX_RETRIES) {
+          try {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
+          } catch (error) {
+            if (retries <= 0) throw error;
+            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+            return fetchWithRetry(url, options, retries - 1);
+          }
+        }
+
+        // 结果显示
+        function displayResults(data) {
+          DOM.resultContainer.innerHTML = '';
+
+          if (!data || Object.keys(data).length === 0) {
+            DOM.resultContainer.innerHTML = '<p class="no-data">没有查询到数据</p>';
+            return;
+          }
+
+          const resultHTML = `
+            <div class="user-data-container">
+              <div class="user-data-content">
+                ${renderUserRank(data.user_rank)}
+                ${renderCarScores(data.car_scores)}
+                ${renderRankList(data.rank_list)}
+              </div>
+            </div>
+          `;
+
+          DOM.resultContainer.innerHTML = resultHTML;
+        }
+
+        // 渲染用户排名
+        function renderUserRank(userRank) {
+          if (!userRank) return '';
+          return `
+            <section class="user-rank-section">
+              <h2 class="section-title">个人段位信息</h2>
+              <div class="data-grid">
+                <div class="data-card">
+                  <h3 class="data-title">当前段位</h3>
+                  <p class="data-value">${userRank.rank_level || 'N/A'}</p>
+                </div>
+                <div class="data-card">
+                  <h3 class="data-title">当前分数</h3>
+                  <p class="data-value">${userRank.rank_score || 'N/A'}</p>
+                </div>
+              </div>
+            </section>
+          `;
+        }
+
+        // 渲染车辆分数
+        function renderCarScores(carScores) {
+          if (!carScores || typeof carScores !== 'object') return '';
+
+          const carCards = Object.entries(carScores).map(([carId, scores]) => {
+            // 处理殿堂分数显示
+            const palaceScores = scores.palace_score_list || [];
+            const palaceDisplay = palaceScores.length > 0
+              ? palaceScores.join(', ')
+              : '<span class="no-data">未记录</span>';
+
+            return `
+              <article class="car-card">
+                <header class="car-header">
+                  <h3 class="car-id">车辆ID: ${carId}</h3>
+                </header>
+                <div class="car-details">
+                  <div class="data-row">
+                    <span class="data-label">当前分数:</span>
+                    <span class="data-value">${scores.rank_score ?? 'N/A'}</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">赛季最佳:</span>
+                    <span class="data-value">${scores.season_best_rank_score ?? 'N/A'}</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">殿堂分数:</span>
+                    <span class="data-value">${palaceDisplay}</span>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join('');
+
+          return `
+            <section class="car-info-section">
+              <h2 class="section-title">车辆信息</h2>
+              <div class="car-grid">${carCards}</div>
+            </section>
+          `;
+        }
+
+        // 格式化殿堂分数 (已整合到renderCarScores中，此函数可删除)
+        // function formatPalaceScores(scores) {
+        //   if (!scores || !scores.palace_score_list) {
+        //     return '<span class="no-data">未记录</span>';
+        //   }
+        //   return scores.palace_score_list.join(', ');
+        // }
+
+
+        // 渲染比赛记录
+        function renderRankList(rankList) {
+          if (!rankList) return '';
+
+          const items = Array.isArray(rankList)
+            ? rankList.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ')
+            : rankList;
+
+          return `
+            <section class="rank-list-section">
+              <h2 class="section-title">比赛记录</h2>
+              <div class="data-card">
+                <p class="data-value">${items}</p>
+              </div>
+            </section>
+          `;
+        }
+
+        // 格式化殿堂分数
+        function formatPalaceScores(scores) {
+          if (!scores || !('palace_scores' in scores)) {
+            return '<span class="no-data">未记录</span>';
+          }
+
+          if (Array.isArray(scores.palace_scores)) {
+            const displayScores = scores.palace_scores.length >= 5
+              ? scores.palace_scores.slice(0, 5)
+              : [...scores.palace_scores, ...Array(5 - scores.palace_scores.length).fill('N/A')];
+            return displayScores.join(', ');
+          }
+
+          return String(scores.palace_scores);
+        }
+
+        // 填充更新表单
+        function fillUpdateForms(data) {
+          if (!data || !data.user_rank) return;
+
+          // 用户排名表单
+          document.getElementById('update-uid').value = data.user_rank.uid || '';
+          document.getElementById('update-score').value = data.user_rank.rank_score || '';
+          document.getElementById('update-level').value = data.user_rank.rank_level || '';
+
+          // 车辆批量更新表单
+          if (data.car_scores) {
+            const updates = {};
+            for (const [carId, scores] of Object.entries(data.car_scores)) {
+              updates[carId] = {
+                rank_score: scores.rank_score,
+                season_best_rank_score: scores.season_best_rank_score,
+                palace_scores: scores.palace_scores
+              };
+            }
+            document.getElementById('batch-uid').value = data.user_rank.uid || '';
+            document.getElementById('batch-updates').value = JSON.stringify(updates, null, 2);
+          }
+
+          // 比赛记录批量更新表单
+          if (data.rank_list) {
+            document.getElementById('batch-rank-uids').value = data.user_rank.uid || '';
+            document.getElementById('batch-rank-new-list').value = JSON.stringify(data.rank_list, null, 2);
+          }
+        }
+
+        // 显示成功消息
+        function showSuccess(element, message, data) {
+          element.innerHTML = `
+            <div class="alert success">
+              <strong>${message}</strong>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        }
+
+        // 显示错误消息
+        function showError(element, message) {
+          element.innerHTML = `<div class="alert error">${message}</div>`;
+        }
+
+        // 表单验证
+        function validateRequiredFields(fields) {
+          return Object.values(fields).every(value => value !== null && value !== undefined && value !== '');
+        }
+
+        // 标签页导航
+        function setupTabNavigation() {
+          document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+              const tabId = button.dataset.tab;
+
+              // 更新按钮状态
+              document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn === button);
+              });
+
+              // 更新内容显示
+              document.querySelectorAll('.tab-pane').forEach(tab => {
+                tab.classList.toggle('active', tab.id === `${tabId}-tab`);
+              });
+            });
+          });
+        }
+
+        // 滚动到顶部功能
+        function setupScrollToTop() {
+          const scrollBtn = document.getElementById('scroll-to-top');
+
+          window.addEventListener('scroll', () => {
+            scrollBtn.classList.toggle('visible', window.scrollY > 300);
+          });
+
+          scrollBtn.addEventListener('click', scrollToTop);
+        }
+
+        function scrollToTop() {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

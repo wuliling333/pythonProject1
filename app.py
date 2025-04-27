@@ -5,6 +5,7 @@ from sc import MongoDBManager
 import json
 from flask_cors import CORS
 
+
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求，解决前端跨域问题
 

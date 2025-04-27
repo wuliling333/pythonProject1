@@ -465,7 +465,64 @@ def handle_query(args, manager):
             f"[{k}]:\n{format_rank_list(v) if k == '比赛记录' else format_car_scores(v) if k == '车辆分数' else pprint.pformat(v)}"
             for k, v in x.items() if v
         ))
+def setup_arg_parser() -> argparse.ArgumentParser:
+    """设置命令行参数解析器"""
+    parser = argparse.ArgumentParser(description="MongoDB数据管理工具")
+    subparsers = parser.add_subparsers(dest='command', required=True)
 
+    # 查询命令
+    query_parser = subparsers.add_parser('query', help='查询数据')
+    query_parser.add_argument("--uids", type=int, nargs="+", required=True, help="用户ID列表")
+    query_parser.add_argument("--type", choices=["user", "car", "rank-list", "all"],
+                              default="all", help="查询类型")
+
+    # 更新用户排名命令
+    update_user_parser = subparsers.add_parser('update-user', help='更新用户排名和分数')
+    update_user_parser.add_argument("--uid", type=int, required=True, help="用户ID")
+    update_user_parser.add_argument("--score", type=int, required=True, help="新的rank_score")
+    update_user_parser.add_argument("--level", type=int, required=True, help="新的rank_level_score")
+
+    # 更新车辆分数命令
+    single_parser = subparsers.add_parser('single', help='单个用户操作')
+    single_subparsers = single_parser.add_subparsers(dest='single_command', required=True)
+
+    single_car_parser = single_subparsers.add_parser('update-car', help='更新单个用户的车辆分数')
+    single_car_parser.add_argument("--uid", type=int, required=True, help="用户ID")
+    single_car_parser.add_argument("--updates", type=json.loads, required=True,
+                                  help='更新内容JSON格式，例如: {'
+                                       '"car_id": {'
+                                           '"rank_score": 2000,'
+                                           '"season_best_rank_score": 2000,'
+                                           '"palace_scores": [1,2,3,4,5]'
+                                       '}'
+                                  '}')
+
+    # 更新比赛记录命令
+    rank_parser = subparsers.add_parser('rank-list', help='更新比赛记录')
+    rank_parser.add_argument("--uids", type=str, required=True, help="逗号分隔的UID列表")
+    rank_parser.add_argument("--new-list", type=json.loads, required=True,
+                            help='新的列表内容（JSON格式），如 "[{\\"rank\\":1}, 2]"')
+
+    # 组合更新命令
+    combo_parser = subparsers.add_parser('combo-update', help='组合更新车辆分数和比赛记录')
+    combo_parser.add_argument("--uids", type=str, required=True, help="逗号分隔的UID列表")
+    combo_parser.add_argument("--car-id", type=str, required=True, help="车辆ID")
+    combo_parser.add_argument("--rank-score", type=int, required=True, help="新的rank_score")
+    combo_parser.add_argument("--season-score", type=int, required=True, help="新的season_best_rank_score")
+    combo_parser.add_argument("--rank-list", type=json.loads, required=True,
+                              help='新的比赛记录列表（JSON格式），如 "[1,1,3,4,1]"')
+
+    # 更新车辆分数命令
+    update_car_score_parser = subparsers.add_parser('update-car-score',
+                                                    help='更新单个用户的车辆分数')
+    update_car_score_parser.add_argument("--uid", type=int, required=True, help="用户ID")
+    update_car_score_parser.add_argument("--car-id", type=str, required=True, help="车辆ID")
+    update_car_score_parser.add_argument("--rank-score", type=int, required=True,
+                                         help="新的rank_score值")
+    update_car_score_parser.add_argument("--season-score", type=int, required=True,
+                                         help="新的season_best_rank_score值")
+
+    return parser
 
 def main():
     parser = setup_arg_parser()
@@ -623,6 +680,21 @@ def main():
 
             print("\n===== 操作完成 =====")
 
+        elif args.command == 'single':
+            if args.single_command == 'update-car':
+                print("\n===== 开始更新单个用户车辆分数 =====")
+                uid = args.uid
+                updates = args.updates
+                print(f"UID: {uid}")
+                print(f"更新内容: {updates}")
+
+                try:
+                    result = manager.batch_update_cars_for_user(uid, updates)
+                    print_result("更新结果", result)
+                except Exception as e:
+                    print(f"更新失败: {e}")
+
+                print("\n===== 更新完成 =====")
     finally:
         manager.close()
 
@@ -637,28 +709,9 @@ python sc.py query --uids 10001779 --type all
 更新用户排名和分数：
 python sc.py update-user --uid 10000621 --score 0 --level 0
 
-更新用户的殿堂近5场分数
-  python sc.py car batch-update-user-cars --uid 10001779 --updates '{"10006": {"palace_scores": [1,5,2,50,100]}, "10001": {"palace_scores": [0,0,50,50,90]}}'
-
-
-修改车辆的分数和赛季分数
-python sc.py car batch-update-user-cars \
-    --uid 10000444 \
-    --updates '{
-      "10001": {"rank_score": 210, "season_best_rank_score": 210}
-}
-'
-
 
 修改车辆排位分和殿堂分
-python sc.py car batch-update-user-cars \
-    --uid 10000560 \
-    --updates '{
-        "10001": {
-            "palace_scores": [50,50,50,50,150],
-            "rank_score": 1550
-        }
-    }'
+python sc.py single update-car --uid 10001779 --updates '{"10001": {"rank_score": 200, "season_best_rank_score": 2000, "palace_scores": [10,20,3,4,5]}}'
 
 
 # 修改比赛排名
