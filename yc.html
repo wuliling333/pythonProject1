@@ -287,228 +287,249 @@
     <!-- 添加滚动到顶部的按钮 -->
     <div class="scroll-to-top" id="scroll-to-top">↑</div>
 
-    <script>
-        // 配置常量
-        const CONFIG = {
-          API_BASE_URL: 'http://10.30.20.18:5001',
-          MAX_RETRIES: 2,
-          RETRY_DELAY: 1000
+  <script>
+      // 配置常量
+      const CONFIG = {
+        API_BASE_URL: 'http://10.30.20.18:5001',
+        MAX_RETRIES: 2,
+        RETRY_DELAY: 1000
+      };
+
+      // DOM 元素缓存
+      const DOM = {
+        queryForm: document.getElementById('query-form'),
+        resultContainer: document.getElementById('result'),
+        updateForms: {
+          user: document.getElementById('update-user-form'),
+          cars: document.getElementById('batch-update-cars-form'),
+          rankList: document.getElementById('batch-update-rank-list-form')
+        },
+        resultElements: {
+          user: document.getElementById('update-user-result'),
+          cars: document.getElementById('batch-update-cars-result'),
+          rankList: document.getElementById('batch-update-rank-list-result')
+        }
+      };
+
+      // 初始化函数
+      function init() {
+        setupEventListeners();
+        setupTabNavigation();
+        setupScrollToTop();
+      }
+
+      // 事件监听器设置
+      function setupEventListeners() {
+        // 查询表单
+        DOM.queryForm.addEventListener('submit', handleQuerySubmit);
+
+        // 更新表单
+        DOM.updateForms.user.addEventListener('submit', handleUserUpdate);
+        DOM.updateForms.cars.addEventListener('submit', handleCarsUpdate);
+        DOM.updateForms.rankList.addEventListener('submit', handleRankListUpdate);
+      }
+
+      // 查询处理
+      async function handleQuerySubmit(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const uid = formData.get('uid').trim();
+        const type = formData.get('type');
+
+        if (!uid) {
+          showError(DOM.resultContainer, '请输入UID');
+          return;
+        }
+
+        // uids参数需要逗号分隔字符串，这里只传单个uid
+        const url = new URL(`${CONFIG.API_BASE_URL}/query`);
+        url.searchParams.append('uids', uid);
+        url.searchParams.append('type', type);
+
+        try {
+          const response = await fetchWithRetry(url.toString(), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+
+          if (response.success) {
+            displayResults(response.data[uid]);
+            fillUpdateForms(response.data[uid]);
+          } else {
+            showError(DOM.resultContainer, `查询失败: ${response.error}`);
+          }
+        } catch (error) {
+          showError(DOM.resultContainer, `查询失败: ${error.message}`);
+        }
+      }
+
+      // 用户更新处理
+      async function handleUserUpdate(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const requestData = {
+          uid: parseInt(formData.get('uid')),
+          score: formData.get('score'),
+          level: formData.get('level')
         };
 
-        // DOM 元素缓存
-        const DOM = {
-          queryForm: document.getElementById('query-form'),
-          resultContainer: document.getElementById('result'),
-          updateForms: {
-            user: document.getElementById('update-user-form'),
-            cars: document.getElementById('batch-update-cars-form'),
-            rankList: document.getElementById('batch-update-rank-list-form')
-          },
-          resultElements: {
-            user: document.getElementById('update-user-result'),
-            cars: document.getElementById('batch-update-cars-result'),
-            rankList: document.getElementById('batch-update-rank-list-result')
-          }
-        };
-
-        // 初始化函数
-        function init() {
-          setupEventListeners();
-          setupTabNavigation();
-          setupScrollToTop();
+        if (!validateRequiredFields(requestData)) {
+          showError(DOM.resultElements.user, '所有字段都是必填的');
+          return;
         }
 
-        // 事件监听器设置
-        function setupEventListeners() {
-          // 查询表单
-          DOM.queryForm.addEventListener('submit', handleQuerySubmit);
+        await processUpdate(
+          `${CONFIG.API_BASE_URL}/update-user`,
+          requestData,
+          DOM.resultElements.user
+        );
+      }
 
-          // 更新表单
-          DOM.updateForms.user.addEventListener('submit', handleUserUpdate);
-          DOM.updateForms.cars.addEventListener('submit', handleCarsUpdate);
-          DOM.updateForms.rankList.addEventListener('submit', handleRankListUpdate);
+      // 车辆批量更新处理
+      async function handleCarsUpdate(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const uid = formData.get('uid');
+        const updatesText = formData.get('updates');
+
+        if (!uid || !updatesText) {
+          showError(DOM.resultElements.cars, 'UID和更新内容不能为空');
+          return;
         }
 
-        // 查询处理
-        async function handleQuerySubmit(event) {
-          event.preventDefault();
-
-          const formData = new FormData(event.target);
+        try {
+          const updates = JSON.parse(updatesText); // 验证JSON格式
           const requestData = {
-            uid: formData.get('uid'),
-            type: formData.get('type')
+            uid: parseInt(uid),
+            updates: updates
           };
-
-          try {
-            const data = await fetchWithRetry(`${CONFIG.API_BASE_URL}/query`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestData)
-            });
-
-            if (data.success) {
-              displayResults(data.data);
-              fillUpdateForms(data.data);
-            } else {
-              showError(DOM.resultContainer, `查询失败: ${data.error}`);
-            }
-          } catch (error) {
-            showError(DOM.resultContainer, `查询失败: ${error.message}`);
-          }
-        }
-
-        // 用户更新处理
-        async function handleUserUpdate(event) {
-          event.preventDefault();
-
-          const formData = new FormData(event.target);
-          const requestData = {
-            uid: formData.get('uid'),
-            score: formData.get('score'),
-            level: formData.get('level')
-          };
-
-          if (!validateRequiredFields(requestData)) {
-            showError(DOM.resultElements.user, '所有字段都是必填的');
-            return;
-          }
 
           await processUpdate(
-            `${CONFIG.API_BASE_URL}/update-user`,
+            `${CONFIG.API_BASE_URL}/car/batch-update-user-cars`,
             requestData,
-            DOM.resultElements.user
+            DOM.resultElements.cars
           );
+        } catch (e) {
+          showError(DOM.resultElements.cars, '更新内容必须是有效的JSON格式');
+        }
+      }
+
+      // 比赛记录批量更新处理
+      async function handleRankListUpdate(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const uidsText = formData.get('uids');
+        const newListText = formData.get('new_list');
+
+        if (!uidsText || !newListText) {
+          showError(DOM.resultElements.rankList, 'UIDs和新比赛记录不能为空');
+          return;
         }
 
-        // 车辆批量更新处理
-        async function handleCarsUpdate(event) {
-          event.preventDefault();
+        try {
+          const uids = uidsText.split(',').map(uid => uid.trim()).filter(uid => uid !== '').map(uid => parseInt(uid));
+          const newList = JSON.parse(newListText); // 验证JSON格式
 
-          const formData = new FormData(event.target);
-          const updates = formData.get('updates');
+          const requestData = {
+            uids: uids,
+            new_list: newList
+          };
 
-          try {
-            JSON.parse(updates); // 验证JSON格式
-            const requestData = {
-              uid: formData.get('uid'),
-              updates: JSON.parse(updates)
-            };
+          await processUpdate(
+            `${CONFIG.API_BASE_URL}/rank-list/batch-update-list`,
+            requestData,
+            DOM.resultElements.rankList
+          );
+        } catch (e) {
+          showError(DOM.resultElements.rankList, '比赛记录必须是有效的JSON格式');
+        }
+      }
 
-            await processUpdate(
-              `${CONFIG.API_BASE_URL}/car/batch-update-user-cars`,
-              requestData,
-              DOM.resultElements.cars
-            );
-          } catch (e) {
-            showError(DOM.resultElements.cars, '更新内容必须是有效的JSON格式');
+      // 通用更新处理
+      async function processUpdate(url, data, resultElement) {
+        try {
+          const response = await fetchWithRetry(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+
+          if (response.success) {
+            showSuccess(resultElement, '更新成功', response.data);
+            scrollToTop();
+          } else {
+            showError(resultElement, `更新失败: ${response.error}`);
           }
+        } catch (error) {
+          showError(resultElement, `更新失败: ${error.message}`);
+        }
+      }
+
+      // 带重试的fetch请求
+      async function fetchWithRetry(url, options, retries = CONFIG.MAX_RETRIES) {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          return await response.json();
+        } catch (error) {
+          if (retries <= 0) throw error;
+          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+          return fetchWithRetry(url, options, retries - 1);
+        }
+      }
+
+      // 结果显示
+      function displayResults(data) {
+        DOM.resultContainer.innerHTML = '';
+
+        if (!data || Object.keys(data).length === 0) {
+          DOM.resultContainer.innerHTML = '<p class="no-data">没有查询到数据</p>';
+          return;
         }
 
-        // 比赛记录批量更新处理
-        async function handleRankListUpdate(event) {
-          event.preventDefault();
+        const resultHTML = `
+          <div class="user-data-container">
+            <div class="user-data-content">
+              ${renderUserRank(data.user_rank)}
+              ${renderCarScores(data.car_scores)}
+              ${renderRankList(data.rank_list)}
+            </div>
+          </div>
+        `;
 
-          const formData = new FormData(event.target);
-          const newList = formData.get('new-list');
+        DOM.resultContainer.innerHTML = resultHTML;
+      }
 
-          try {
-            JSON.parse(newList); // 验证JSON格式
-            const requestData = {
-              uids: formData.get('uids').split(',').map(uid => uid.trim()),
-              new_list: JSON.parse(newList)
-            };
-
-            await processUpdate(
-              `${CONFIG.API_BASE_URL}/rank-list/batch-update-list`,
-              requestData,
-              DOM.resultElements.rankList
-            );
-          } catch (e) {
-            showError(DOM.resultElements.rankList, '比赛记录必须是有效的JSON格式');
-          }
-        }
-
-        // 通用更新处理
-        async function processUpdate(url, data, resultElement) {
-          try {
-            const response = await fetchWithRetry(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
-            });
-
-            if (response.success) {
-              showSuccess(resultElement, '更新成功', response.data);
-              scrollToTop();
-            } else {
-              showError(resultElement, `更新失败: ${response.error}`);
-            }
-          } catch (error) {
-            showError(resultElement, `更新失败: ${error.message}`);
-          }
-        }
-
-        // 带重试的fetch请求
-        async function fetchWithRetry(url, options, retries = CONFIG.MAX_RETRIES) {
-          try {
-            const response = await fetch(url, options);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return await response.json();
-          } catch (error) {
-            if (retries <= 0) throw error;
-            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-            return fetchWithRetry(url, options, retries - 1);
-          }
-        }
-
-        // 结果显示
-        function displayResults(data) {
-          DOM.resultContainer.innerHTML = '';
-
-          if (!data || Object.keys(data).length === 0) {
-            DOM.resultContainer.innerHTML = '<p class="no-data">没有查询到数据</p>';
-            return;
-          }
-
-          const resultHTML = `
-            <div class="user-data-container">
-              <div class="user-data-content">
-                ${renderUserRank(data.user_rank)}
-                ${renderCarScores(data.car_scores)}
-                ${renderRankList(data.rank_list)}
+      // 渲染用户排名
+      function renderUserRank(userRank) {
+        if (!userRank) return '';
+        return `
+          <section class="user-rank-section">
+            <h2 class="section-title">个人段位信息</h2>
+            <div class="data-grid">
+              <div class="data-card">
+                <h3 class="data-title">当前段位</h3>
+                <p class="data-value">${userRank.rank_level || 'N/A'}</p>
+              </div>
+              <div class="data-card">
+                <h3 class="data-title">当前分数</h3>
+                <p class="data-value">${userRank.rank_score || 'N/A'}</p>
               </div>
             </div>
-          `;
+          </section>
+        `;
+      }
 
-          DOM.resultContainer.innerHTML = resultHTML;
-        }
-
-        // 渲染用户排名
-        function renderUserRank(userRank) {
-          if (!userRank) return '';
-          return `
-            <section class="user-rank-section">
-              <h2 class="section-title">个人段位信息</h2>
-              <div class="data-grid">
-                <div class="data-card">
-                  <h3 class="data-title">当前段位</h3>
-                  <p class="data-value">${userRank.rank_level || 'N/A'}</p>
-                </div>
-                <div class="data-card">
-                  <h3 class="data-title">当前分数</h3>
-                  <p class="data-value">${userRank.rank_score || 'N/A'}</p>
-                </div>
-              </div>
-            </section>
-          `;
-        }
-
-        // 渲染车辆分数
-        function renderCarScores(carScores) {
+      // 渲染车辆分数
+      function renderCarScores(carScores) {
           if (!carScores || typeof carScores !== 'object') return '';
 
           const carCards = Object.entries(carScores).map(([carId, scores]) => {
-            // 处理殿堂分数显示
+            // 这里改成 palace_score_list
             const palaceScores = scores.palace_score_list || [];
             const palaceDisplay = palaceScores.length > 0
               ? palaceScores.join(', ')
@@ -545,138 +566,124 @@
           `;
         }
 
-        // 格式化殿堂分数 (已整合到renderCarScores中，此函数可删除)
-        // function formatPalaceScores(scores) {
-        //   if (!scores || !scores.palace_score_list) {
-        //     return '<span class="no-data">未记录</span>';
-        //   }
-        //   return scores.palace_score_list.join(', ');
-        // }
 
+      // 渲染比赛记录
+      function renderRankList(rankList) {
+        if (!rankList) return '';
 
-        // 渲染比赛记录
-        function renderRankList(rankList) {
-          if (!rankList) return '';
+        const items = Array.isArray(rankList)
+          ? rankList.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ')
+          : rankList;
 
-          const items = Array.isArray(rankList)
-            ? rankList.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ')
-            : rankList;
-
-          return `
-            <section class="rank-list-section">
-              <h2 class="section-title">比赛记录</h2>
-              <div class="data-card">
-                <p class="data-value">${items}</p>
-              </div>
-            </section>
-          `;
-        }
-
-        // 格式化殿堂分数
-        function formatPalaceScores(scores) {
-          if (!scores || !('palace_scores' in scores)) {
-            return '<span class="no-data">未记录</span>';
-          }
-
-          if (Array.isArray(scores.palace_scores)) {
-            const displayScores = scores.palace_scores.length >= 5
-              ? scores.palace_scores.slice(0, 5)
-              : [...scores.palace_scores, ...Array(5 - scores.palace_scores.length).fill('N/A')];
-            return displayScores.join(', ');
-          }
-
-          return String(scores.palace_scores);
-        }
-
-        // 填充更新表单
-        function fillUpdateForms(data) {
-          if (!data || !data.user_rank) return;
-
-          // 用户排名表单
-          document.getElementById('update-uid').value = data.user_rank.uid || '';
-          document.getElementById('update-score').value = data.user_rank.rank_score || '';
-          document.getElementById('update-level').value = data.user_rank.rank_level || '';
-
-          // 车辆批量更新表单
-          if (data.car_scores) {
-            const updates = {};
-            for (const [carId, scores] of Object.entries(data.car_scores)) {
-              updates[carId] = {
-                rank_score: scores.rank_score,
-                season_best_rank_score: scores.season_best_rank_score,
-                palace_scores: scores.palace_scores
-              };
-            }
-            document.getElementById('batch-uid').value = data.user_rank.uid || '';
-            document.getElementById('batch-updates').value = JSON.stringify(updates, null, 2);
-          }
-
-          // 比赛记录批量更新表单
-          if (data.rank_list) {
-            document.getElementById('batch-rank-uids').value = data.user_rank.uid || '';
-            document.getElementById('batch-rank-new-list').value = JSON.stringify(data.rank_list, null, 2);
-          }
-        }
-
-        // 显示成功消息
-        function showSuccess(element, message, data) {
-          element.innerHTML = `
-            <div class="alert success">
-              <strong>${message}</strong>
-              <pre>${JSON.stringify(data, null, 2)}</pre>
+        return `
+          <section class="rank-list-section">
+            <h2 class="section-title">比赛记录</h2>
+            <div class="data-card">
+              <p class="data-value">${items}</p>
             </div>
-          `;
+          </section>
+        `;
+      }
+
+      // 填充更新表单
+     function fillUpdateForms(data) {
+      if (!data || !data.user_rank) return;
+
+      // 用户排名表单
+      document.getElementById('update-uid').value = data.user_rank.uid || '';
+      document.getElementById('update-score').value = data.user_rank.rank_score || '';
+      document.getElementById('update-level').value = data.user_rank.rank_level || '';
+
+      // 车辆批量更新表单，转换 palace_score_list => palace_scores
+      if (data.car_scores) {
+        const updates = {};
+        for (const [carId, scores] of Object.entries(data.car_scores)) {
+          const palaceScoreList = scores.palace_score_list || [];
+          // palace_score_list 可能是复杂结构，提取纯数字数组
+          const palaceScores = palaceScoreList.map(item => {
+            // item 可能是数字或对象
+            if (typeof item === 'number') return item;
+            if (typeof item === 'object' && item !== null && 'score' in item) return item.score;
+            return 0;
+          });
+          updates[carId] = {
+            rank_score: scores.rank_score,
+            season_best_rank_score: scores.season_best_rank_score,
+            palace_scores: palaceScores
+          };
         }
+        document.getElementById('batch-uid').value = data.user_rank.uid || '';
+        document.getElementById('batch-updates').value = JSON.stringify(updates, null, 2);
+      }
 
-        // 显示错误消息
-        function showError(element, message) {
-          element.innerHTML = `<div class="alert error">${message}</div>`;
-        }
+      // 比赛记录批量更新表单
+      if (data.rank_list) {
+        document.getElementById('batch-rank-uids').value = data.user_rank.uid || '';
+        document.getElementById('batch-rank-new-list').value = JSON.stringify(data.rank_list, null, 2);
+      }
+    }
 
-        // 表单验证
-        function validateRequiredFields(fields) {
-          return Object.values(fields).every(value => value !== null && value !== undefined && value !== '');
-        }
 
-        // 标签页导航
-        function setupTabNavigation() {
-          document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-              const tabId = button.dataset.tab;
 
-              // 更新按钮状态
-              document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', btn === button);
-              });
+      // 显示成功消息
+      function showSuccess(element, message, data) {
+        element.innerHTML = `
+          <div class="alert success">
+            <strong>${message}</strong>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      }
 
-              // 更新内容显示
-              document.querySelectorAll('.tab-pane').forEach(tab => {
-                tab.classList.toggle('active', tab.id === `${tabId}-tab`);
-              });
+      // 显示错误消息
+      function showError(element, message) {
+        element.innerHTML = `<div class="alert error">${message}</div>`;
+      }
+
+      // 表单验证
+      function validateRequiredFields(fields) {
+        return Object.values(fields).every(value => value !== null && value !== undefined && value !== '');
+      }
+
+      // 标签页导航
+      function setupTabNavigation() {
+        document.querySelectorAll('.tab-button').forEach(button => {
+          button.addEventListener('click', () => {
+            const tabId = button.dataset.tab;
+
+            // 更新按钮状态
+            document.querySelectorAll('.tab-button').forEach(btn => {
+              btn.classList.toggle('active', btn === button);
+            });
+
+            // 更新内容显示
+            document.querySelectorAll('.tab-pane').forEach(tab => {
+              tab.classList.toggle('active', tab.id === `${tabId}-tab`);
             });
           });
-        }
+        });
+      }
 
-        // 滚动到顶部功能
-        function setupScrollToTop() {
-          const scrollBtn = document.getElementById('scroll-to-top');
+      // 滚动到顶部功能
+      function setupScrollToTop() {
+        const scrollBtn = document.getElementById('scroll-to-top');
 
-          window.addEventListener('scroll', () => {
-            scrollBtn.classList.toggle('visible', window.scrollY > 300);
-          });
+        window.addEventListener('scroll', () => {
+          scrollBtn.classList.toggle('visible', window.scrollY > 300);
+        });
 
-          scrollBtn.addEventListener('click', scrollToTop);
-        }
+        scrollBtn.addEventListener('click', scrollToTop);
+      }
 
-        function scrollToTop() {
-          window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-          });
-        }
+      function scrollToTop() {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
 
-        // 初始化应用
-        document.addEventListener('DOMContentLoaded', init);
+      // 初始化应用
+      document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

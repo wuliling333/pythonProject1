@@ -499,31 +499,18 @@ def setup_arg_parser() -> argparse.ArgumentParser:
 
     # 更新比赛记录命令
     rank_parser = subparsers.add_parser('rank-list', help='更新比赛记录')
-    rank_parser.add_argument("--uids", type=str, required=True, help="逗号分隔的UID列表")
-    rank_parser.add_argument("--new-list", type=json.loads, required=True,
-                            help='新的列表内容（JSON格式），如 "[{\\"rank\\":1}, 2]"')
+    rank_subparsers = rank_parser.add_subparsers(dest='rank_command', required=True)
 
-    # 组合更新命令
-    combo_parser = subparsers.add_parser('combo-update', help='组合更新车辆分数和比赛记录')
-    combo_parser.add_argument("--uids", type=str, required=True, help="逗号分隔的UID列表")
-    combo_parser.add_argument("--car-id", type=str, required=True, help="车辆ID")
-    combo_parser.add_argument("--rank-score", type=int, required=True, help="新的rank_score")
-    combo_parser.add_argument("--season-score", type=int, required=True, help="新的season_best_rank_score")
-    combo_parser.add_argument("--rank-list", type=json.loads, required=True,
-                              help='新的比赛记录列表（JSON格式），如 "[1,1,3,4,1]"')
+    update_rank_list = rank_subparsers.add_parser('update-list', help='更新整个recent_rank_list')
+    update_rank_list.add_argument("--uid", type=int, required=True, help="用户ID")
+    update_rank_list.add_argument("--new-list", type=json.loads, required=True,
+                                  help='新的列表内容（JSON格式），如 "[{\\"rank\\":1}, 2]"')
 
-    # 更新车辆分数命令
-    update_car_score_parser = subparsers.add_parser('update-car-score',
-                                                    help='更新单个用户的车辆分数')
-    update_car_score_parser.add_argument("--uid", type=int, required=True, help="用户ID")
-    update_car_score_parser.add_argument("--car-id", type=str, required=True, help="车辆ID")
-    update_car_score_parser.add_argument("--rank-score", type=int, required=True,
-                                         help="新的rank_score值")
-    update_car_score_parser.add_argument("--season-score", type=int, required=True,
-                                         help="新的season_best_rank_score值")
+    batch_update_rank_list = rank_subparsers.add_parser('batch-update-list', help='批量更新多个用户的整个recent_rank_list')
+    batch_update_rank_list.add_argument("--uids", type=str, required=True, help="逗号分隔的UID列表")
+    batch_update_rank_list.add_argument("--new-list", type=json.loads, required=True, help='新的列表内容（JSON格式）')
 
     return parser
-
 def main():
     parser = setup_arg_parser()
     args = parser.parse_args()
@@ -565,7 +552,17 @@ def main():
                     result = manager.get_recent_rank_list(uid)
                     print_result(f"UID {uid} 比赛记录",
                                  format_rank_list(result) if result else "获取失败")
+        if args.command == 'rank-list':
+            if args.rank_command == 'batch-update-list':
+                uids = [int(uid.strip()) for uid in args.uids.split(',')]
+                new_list = args.new_list
 
+                results = {}
+                for uid in uids:
+                    result = manager.update_recent_rank_list(uid, new_list)
+                    results[uid] = result
+
+                print_result("批量更新比赛记录", results)
             elif args.rank_command == 'update-list':
                 result = manager.update_recent_rank_list(args.uid, args.new_list)
                 print_result("更新比赛记录", result)
@@ -711,9 +708,17 @@ python sc.py update-user --uid 10000621 --score 0 --level 0
 
 
 修改车辆排位分和殿堂分
-python sc.py single update-car --uid 10001779 --updates '{"10001": {"rank_score": 200, "season_best_rank_score": 2000, "palace_scores": [10,20,3,4,5]}}'
+python sc.py single update-car --uid 10001779 --updates '{"10001": {"rank_score": 2009, "season_best_rank_score": 2000, "palace_scores": [10,20,3,4,5]}}'
 
-
+{"uid": 10001779, "updates": {"10001": {"rank_score": 200, "season_best_rank_score": 2000, "palace_scores": [10,20,3,4,50]}}}
+{
+  "uid": 10001708,
+  "updates": {
+    "1002": {
+      "rank_score": 1201,
+      "season_best_rank_score": 0,
+      "palace_score_list": [30, 0, 0, 0, 0]
+    }
 # 修改比赛排名
 python sc.py rank-list batch-update-list \
     --uids "10000444" \
