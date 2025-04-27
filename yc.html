@@ -528,43 +528,30 @@
       function renderCarScores(carScores) {
           if (!carScores || typeof carScores !== 'object') return '';
 
-          const carCards = Object.entries(carScores).map(([carId, scores]) => {
-            // 这里改成 palace_score_list
+          const carLines = Object.entries(carScores).map(([carId, scores]) => {
             const palaceScores = scores.palace_score_list || [];
             const palaceDisplay = palaceScores.length > 0
               ? palaceScores.join(', ')
-              : '<span class="no-data">未记录</span>';
+              : '未记录';
 
             return `
-              <article class="car-card">
-                <header class="car-header">
-                  <h3 class="car-id">车辆ID: ${carId}</h3>
-                </header>
-                <div class="car-details">
-                  <div class="data-row">
-                    <span class="data-label">当前分数:</span>
-                    <span class="data-value">${scores.rank_score ?? 'N/A'}</span>
-                  </div>
-                  <div class="data-row">
-                    <span class="data-label">赛季最佳:</span>
-                    <span class="data-value">${scores.season_best_rank_score ?? 'N/A'}</span>
-                  </div>
-                  <div class="data-row">
-                    <span class="data-label">殿堂分数:</span>
-                    <span class="data-value">${palaceDisplay}</span>
-                  </div>
-                </div>
-              </article>
+              <p style="margin: 6px 0; white-space: nowrap;">
+                <strong>车辆ID: ${carId}</strong> &nbsp;&nbsp;
+                当前分数: <span>${scores.rank_score ?? 'N/A'}</span> &nbsp;&nbsp;
+                赛季最佳: <span>${scores.season_best_rank_score ?? 'N/A'}</span> &nbsp;&nbsp;
+                殿堂分数: <span>${palaceDisplay}</span>
+              </p>
             `;
           }).join('');
 
           return `
-            <section class="car-info-section">
+            <section class="car-info-section" style="margin-top: 10px;">
               <h2 class="section-title">车辆信息</h2>
-              <div class="car-grid">${carCards}</div>
+              <div>${carLines}</div>
             </section>
           `;
         }
+
 
 
       // 渲染比赛记录
