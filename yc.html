@@ -237,11 +237,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="update-score">分数：</label>
-                                <input type="text" id="update-score" name="score" placeholder="输入新的分数">
+                                <input type="number" id="update-score" name="score" placeholder="输入新的分数">
                             </div>
                             <div class="form-group">
                                 <label for="update-level">等级：</label>
-                                <input type="text" id="update-level" name="level" placeholder="输入新的等级">
+                                <input type="number" id="update-level" name="level" placeholder="输入新的等级">
                             </div>
                             <button type="submit">更新用户排名</button>
                         </form>
@@ -526,13 +526,13 @@
 
       // 渲染车辆分数
       function renderCarScores(carScores) {
-          if (!carScores || typeof carScores !== 'object') return '';
+        if (!carScores || typeof carScores !== 'object') return '';
 
-          const carLines = Object.entries(carScores).map(([carId, scores]) => {
-            const palaceScores = scores.palace_score_list || [];
-            const palaceDisplay = palaceScores.length > 0
-              ? palaceScores.join(', ')
-              : '未记录';
+        const carLines = Object.entries(carScores).map(([carId, scores]) => {
+            const palaceScoreList = scores.palace_score_list || [];
+            const palaceDisplay = palaceScoreList.length > 0
+                ? palaceScoreList.join(', ')
+                : '未记录';
 
             return `
               <p style="margin: 6px 0; white-space: nowrap;">
@@ -542,17 +542,15 @@
                 殿堂分数: <span>${palaceDisplay}</span>
               </p>
             `;
-          }).join('');
+        }).join('');
 
-          return `
-            <section class="car-info-section" style="margin-top: 10px;">
-              <h2 class="section-title">车辆信息</h2>
-              <div>${carLines}</div>
-            </section>
-          `;
-        }
-
-
+        return `
+          <section class="car-info-section" style="margin-top: 10px;">
+            <h2 class="section-title">车辆信息</h2>
+            <div>${carLines}</div>
+          </section>
+        `;
+      }
 
       // 渲染比赛记录
       function renderRankList(rankList) {
@@ -573,44 +571,40 @@
       }
 
       // 填充更新表单
-     function fillUpdateForms(data) {
-      if (!data || !data.user_rank) return;
+      function fillUpdateForms(data) {
+        if (!data || !data.user_rank) return;
 
-      // 用户排名表单
-      document.getElementById('update-uid').value = data.user_rank.uid || '';
-      document.getElementById('update-score').value = data.user_rank.rank_score || '';
-      document.getElementById('update-level').value = data.user_rank.rank_level || '';
+        // 用户排名表单
+        document.getElementById('update-uid').value = data.user_rank.uid || '';
+        document.getElementById('update-score').value = parseInt(data.user_rank.rank_score) || 0;
+        document.getElementById('update-level').value = parseInt(data.user_rank.rank_level) || 0;
 
-      // 车辆批量更新表单，转换 palace_score_list => palace_scores
-      if (data.car_scores) {
-        const updates = {};
-        for (const [carId, scores] of Object.entries(data.car_scores)) {
-          const palaceScoreList = scores.palace_score_list || [];
-          // palace_score_list 可能是复杂结构，提取纯数字数组
-          const palaceScores = palaceScoreList.map(item => {
-            // item 可能是数字或对象
-            if (typeof item === 'number') return item;
-            if (typeof item === 'object' && item !== null && 'score' in item) return item.score;
-            return 0;
-          });
-          updates[carId] = {
-            rank_score: scores.rank_score,
-            season_best_rank_score: scores.season_best_rank_score,
-            palace_scores: palaceScores
-          };
+        // 车辆批量更新表单
+        if (data.car_scores) {
+          const updates = {};
+          for (const [carId, scores] of Object.entries(data.car_scores)) {
+            const palaceScoreList = scores.palace_score_list || [];
+            const palaceScores = palaceScoreList.map(item => {
+              if (typeof item === 'number') return item;
+              if (typeof item === 'object' && item !== null && 'score' in item) return item.score;
+              return 0;
+            });
+            updates[carId] = {
+              rank_score: scores.rank_score,
+              season_best_rank_score: scores.season_best_rank_score,
+              palace_scores: palaceScores
+            };
+          }
+          document.getElementById('batch-uid').value = data.user_rank.uid || '';
+          document.getElementById('batch-updates').value = JSON.stringify(updates, null, 2);
         }
-        document.getElementById('batch-uid').value = data.user_rank.uid || '';
-        document.getElementById('batch-updates').value = JSON.stringify(updates, null, 2);
+
+        // 比赛记录批量更新表单
+        if (data.rank_list) {
+          document.getElementById('batch-rank-uids').value = data.user_rank.uid || '';
+          document.getElementById('batch-rank-new-list').value = JSON.stringify(data.rank_list, null, 2);
+        }
       }
-
-      // 比赛记录批量更新表单
-      if (data.rank_list) {
-        document.getElementById('batch-rank-uids').value = data.user_rank.uid || '';
-        document.getElementById('batch-rank-new-list').value = JSON.stringify(data.rank_list, null, 2);
-      }
-    }
-
-
 
       // 显示成功消息
       function showSuccess(element, message, data) {

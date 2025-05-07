@@ -55,19 +55,54 @@ def query():
 @app.route('/update-user', methods=['POST'])
 def update_user():
     try:
+        # 获取请求数据
         data = request.get_json(force=True)
+
+        # 提取参数并进行初步验证
         uid = data.get('uid')
         score = data.get('score')
         level = data.get('level')
 
+        # 检查参数完整性
         if not all([uid is not None, score is not None, level is not None]):
-            return jsonify({'success': False, 'error': '参数不完整'})
+            return jsonify({
+                'success': False,
+                'error': '参数不完整',
+                'data': {
+                    'uid': uid,
+                    'score': score,
+                    'level': level
+                }
+            }), 400  # 返回400状态码表示请求错误
 
+        # 验证参数类型（确保它们是整数）
+        try:
+            uid = int(uid)
+            score = int(score)
+            level = int(level)
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': '参数类型错误，uid、score和level必须为整数'
+            }), 400
+
+        # 执行更新操作
         result = manager.update_user_rank(uid, score, level)
-        return jsonify({'success': True if result else False, 'data': result})
+
+        # 构造响应数据
+        response = {
+            'success': True,
+            'data': result
+        }
+
+        return jsonify(response)
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        # 捕获所有异常并返回错误信息
+        return jsonify({
+            'success': False,
+            'error': f'更新失败: {str(e)}'
+        }), 500  # 返回500状态码表示服务器错误
 
 # 修改车辆排位分和殿堂分
 @app.route('/car/batch-update-user-cars', methods=['POST'])

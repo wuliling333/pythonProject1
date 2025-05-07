@@ -701,10 +701,10 @@ if __name__ == "__main__":
 
 """
  #查询用户排名和车辆分数：
-python sc.py query --uids 10001779 --type all
+python sc.py query --uids 10001803 --type all
 
 更新用户排名和分数：
-python sc.py update-user --uid 10000621 --score 0 --level 0
+python sc.py update-user --uid 10001703 --score 100 --level 0
 
 
 修改车辆排位分和殿堂分
