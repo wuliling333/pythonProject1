@@ -133,23 +133,30 @@ class MongoDBManager:
                 if 'rank_score' in updates:
                     update_fields[f"car_garage.car_list.{car_id}.rank_score"] = updates['rank_score']
                 if 'season_best_rank_score' in updates:
-                    update_fields[f"car_garage.car_list.{car_id}.season_best_rank_score"] = updates['season_best_rank_score']
+                    update_fields[f"car_garage.car_list.{car_id}.season_best_rank_score"] = updates[
+                        'season_best_rank_score']
 
                 if 'palace_scores' in updates:
                     new_scores = updates['palace_scores']
                     if not isinstance(new_scores, list) or len(new_scores) != 5:
                         return {'success': False, 'error': 'palace_scores必须是长度为5的列表'}
 
+                    # 获取当前的palace_score_list，如果不存在则初始化为空列表
                     current_list = current_cars[car_id].get('palace_score_list', [{}] * 5)
+                    # 确保current_list长度为5
                     if len(current_list) < 5:
                         current_list.extend([{}] * (5 - len(current_list)))
 
                     updated_list = []
                     for i in range(5):
+                        # 如果有新的分数，则使用新分数；否则保留原分数
+                        score = new_scores[i] if 'palace_scores' in updates and i < len(new_scores) else current_list[
+                            i].get('score', -1)
+                        # 将invalid设置为true
                         updated_list.append({
-                            "score": new_scores[i],
+                            "score": score,
                             "protect_state": current_list[i].get("protect_state", 0),
-                            "invalid": current_list[i].get("invalid", False)
+                            "invalid": False  # 设置为true
                         })
                     update_fields[f"car_garage.car_list.{car_id}.palace_score_list"] = updated_list
 
